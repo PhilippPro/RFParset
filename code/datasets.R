@@ -1,0 +1,146 @@
+# Abzugsdatum: 28.01 / 29.01
+options(java.parameters = "- Xmx1024m") # Should avoid java gc overhead
+library(OpenML)
+
+# saveOMLConfig(apikey = "6df93acdb13899f48fd6bd689b0dd7cf", arff.reader = "farff", overwrite=TRUE)
+saveOMLConfig(apikey = "6df93acdb13899f48fd6bd689b0dd7cf", arff.reader = "RWeka", overwrite=TRUE)
+datasets = listOMLDataSets() 
+tasks = listOMLTasks()
+tasktypes = listOMLTaskTypes()
+
+clas = subset(tasks, task_type == "Supervised Classification") # 1860 Class.-Tasks
+
+# nur Datensaetze ohne NA-Werte
+clas = clas[!(clas$name %in% clas$name[clas$NumberOfMissingValues != 0]), ]
+
+# Jeder Datensatz nur einmal
+clas = clas[order(clas$did),]
+logic = logical(nrow(clas))
+logic = rep(TRUE, nrow(clas))
+for(i in 2:nrow(clas))
+  if(clas$did[i] == clas$did[i-1]) logic[i] = FALSE
+clas = clas[logic,]
+
+nans = character(nrow(clas))
+# Nur Datensätze mit Categorical target
+for(j in 577:nrow(clas)){
+  print(j)
+  task = getOMLTask(task.id = clas$task_id[j], verbosity=0)
+  nans[j] = try(class(task$input$data.set$data[, task$input$data.set$target.features]))
+  save(nans, file = "/home/probst/Random_Forest/Parameter_Tuning/Simulation/Classification/nans_clas.RData")
+  gc()
+}
+
+load("/home/probst/Random_Forest/Parameter_Tuning/Simulation/Classification/nans_clas.RData")
+clas = clas[which(nans == "factor"), ]
+
+# doppelt vorkommende entfernen
+doppelt = names(sort(table(clas$name)[table(clas$name) > 1]))
+doppelt = clas[clas$name %in% doppelt,]
+doppelt = doppelt[order(doppelt$name), ]
+doppelt[100:121, c(1,3,5,7,9,10,11,14,15)]
+raus = c(2075, 9900, 9901, 3833, 3876, 3877, 3564, 3860, 10095, 3854, 9898, 7295, 7293, 7291, 3846, 3567, 3878, 2072, 3020, 7593, 3951, 3578, 3874, 3851, 3875, 3868, 3888,
+         3837, 3832, 3840, 3869, 3841, 3834, 3883, 3825, 3885, 3858, 3819, 3822, 9892, 3843, 3884, 3827, 3882, 9891, 3859, 3811, 3607, 3821, 3576, 3575, 
+         3817, 3816, 3818, 3857, 9940, 3731, 3879, 9941, 9942, 3842, 3872, 3836, 3828)
+clas = clas[!(clas$task_id %in% raus),]
+clas = clas[order(clas$name), ]
+
+# Friedman-, volcanoes- und trX-Datensaetze raus
+clas = clas[substr(clas$name,1,9) != "volcanoes" & substr(clas$name,1,4) != "fri_" & substr(clas$name,1,3) != "tr1" & substr(clas$name,1,3) != "tr2" & substr(clas$name,1,3) != "tr3" & substr(clas$name,1,3) != "tr4", ]
+
+nrow(clas) #  509 datasets
+sum(clas$NumberOfFeatures) # 1168491 Features
+hist(clas$NumberOfFeatures)
+sum(clas[clas$NumberOfFeatures < 100,]$NumberOfFeatures)
+
+# Datensaetze nach Groesse ordnen (n*p)
+
+clas = clas[order(clas$NumberOfFeatures * clas$NumberOfInstances), ]
+
+save(clas, file="/home/probst/Random_Forest/RFParset/results/clas.RData")
+
+# Datensaetze abspeichern
+for(j in 1:nrow(clas)){
+  print(j)
+  task = getOMLTask(task.id = clas$task_id[j], verbosity=0)
+  save(task, file = paste("/home/probst/Random_Forest/Parameter_Tuning/Simulation/Classification/Datasets/", j, ".RData", sep=""))
+  gc()
+}
+
+######################################################### Regression #########################################################
+
+options(java.parameters = "- Xmx1024m") # Should avoid java gc overhead
+library(OpenML)
+
+saveOMLConfig(apikey = "6df93acdb13899f48fd6bd689b0dd7cf", arff.reader = "RWeka", overwrite=TRUE)
+datasets = listOMLDataSets() 
+length(datasets$name)
+tasks = listOMLTasks()
+tasktypes = listOMLTaskTypes()
+
+tasktypes
+reg = subset(tasks, task_type == "Supervised Regression") # 1854 Regr.-Tasks
+# nur Datensaetze ohne NA-Werte
+reg = reg[!(reg$name %in% reg$name[reg$NumberOfMissingValues != 0]), ]
+
+# Jeder Datensatz nur einmal
+reg = reg[order(reg$did),]
+logic = logical(nrow(reg))
+logic = rep(TRUE, nrow(reg))
+for(i in 2:nrow(reg))
+  if(reg$did[i] == reg$did[i-1]) logic[i] = FALSE
+reg = reg[logic,]
+
+nans = character(nrow(reg))
+#Nur Datensätze mit numeric/integer target
+for(j in 1:length(reg$task_id)){
+  print(j)
+  task = getOMLTask(task.id = reg$task_id[j], verbosity=0)
+  nans[j] = try(class(task$input$data.set$data[, task$input$data.set$target.features]))
+  save(nans, file = "/home/probst/Random_Forest/Parameter_Tuning/Simulation/Regression/nans_reg.RData")
+  gc()
+}
+
+load("/home/probst/Random_Forest/Parameter_Tuning/Simulation/Regression/nans_reg.RData")
+reg = reg[which(nans == "numeric" | nans == "integer"), ]
+
+# doppelt vorkommende entfernen
+doppelt = names(sort(table(reg$name)[table(reg$name) > 1]))
+doppelt = reg[reg$name %in% doppelt, ]
+doppelt = doppelt[order(doppelt$name), ]
+doppelt[, c(1,3,5,7,9,10,11,14,15)]
+
+raus = c(4892, 4883, 4876, 5025, 4874)
+
+reg = reg[!(reg$task_id %in% raus),]
+
+reg = reg[order(reg$name), ]
+
+# Friedman-, volcanoes- und trX-Datensaetze raus
+reg = reg[substr(reg$name,1,3) != "fri" & substr(reg$name,1,4) != "a3a" & substr(reg$name,1,3) != "a4a" & substr(reg$name,1,3) != "a5a" 
+          & substr(reg$name,1,3) != "a6a" & substr(reg$name,1,3) != "a7a" & substr(reg$name,1,3) != "a8a" & substr(reg$name,1,3) != "a9a" 
+          & substr(reg$name,1,9) != "autoPrice" & substr(reg$name,1,9) != "chscase_c" & substr(reg$name,1,4) != "QSAR" , ]
+
+# Künstliche Drug-Datensätze raus (mit 1143 Numeric Features)
+reg = reg[reg$NumberOfNumericFeatures != 1143, ]
+
+nrow(reg) #  160 datasets
+sum(reg$NumberOfFeatures) # 16810 Features
+hist(reg$NumberOfFeatures)
+sum(reg[reg$NumberOfFeatures < 100,]$NumberOfFeatures)
+
+# Datensaetze nach Groesse ordnen (n*p)
+reg = reg[order(reg$NumberOfFeatures * reg$NumberOfInstances), ]
+
+# Nur 1 Feature = Target, das ist unsinnig
+reg = reg[-121, ]
+
+save(reg, file="/home/probst/Random_Forest/RFParset/results/reg.RData")
+
+# Datensaetze abspeichern
+for(j in 1:nrow(reg)){
+  print(j)
+  task = getOMLTask(task.id = reg$task_id[j], verbosity=0)
+  save(task, file = paste("/home/probst/Random_Forest/Parameter_Tuning/Simulation/Regression/Datasets/", j, ".RData", sep=""))
+  gc()
+}
