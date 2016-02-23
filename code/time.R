@@ -18,13 +18,17 @@ for(j in 1:nrow(clas)){
     for(k in which(sapply(task$input$data.set$data, class) == "character"))
       task$input$data.set$data[,k] = as.factor(task$input$data.set$data[,k])
   }
-  # randomForest kann mit zu vielen Kategorien nicht umgehen!; randomForestSRC schon.
+  # randomForest kann mit zu vielen Kategorien nicht umgehen!; randomForestSRC schon, aber unter Umständen läuft der Speicher voll.
   time1[[j]] = system.time(runs1[[j]] <- try(randomForest(as.formula(paste(task$input$data.set$target.features,"~.") ), data = task$input$data.set$data, replace = TRUE, ntree = 10000)$err.rate[, 1]))
   time2[[j]] = system.time(runs2[[j]] <- try(rfsrc(as.formula(paste(task$input$data.set$target.features,"~.") ), data = task$input$data.set$data, replace = TRUE, ntree = 10000, importance = "none")$err.rate[,1]))
   }
   gc()
   save(time1, time2, runs1, runs2, file = "/home/probst/Random_Forest/RFParset/results/clas_time.RData")
 }
+# Problem: Speicher läuft voll, wenn zu viele Kategorien in einer Variable (siehe Task 238, 5000 Kategorien); 
+# Beschränke auf z.B. maximal 50 Kategorien, dann kann randomForest damit umgehen
+
+load("/home/probst/Random_Forest/RFParset/results/clas_time.RData")
 
 # Regressionen
 load("/home/probst/Random_Forest/RFParset/results/reg.RData")
