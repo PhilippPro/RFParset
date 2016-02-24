@@ -23,7 +23,7 @@ clas = clas[logic,]
 
 nans = character(nrow(clas))
 # Nur Datensätze mit Categorical target
-for(j in 577:nrow(clas)){
+for(j in 1:nrow(clas)){
   print(j)
   task = getOMLTask(task.id = clas$task_id[j], verbosity=0)
   nans[j] = try(class(task$input$data.set$data[, task$input$data.set$target.features]))
@@ -54,18 +54,29 @@ hist(clas$NumberOfFeatures)
 sum(clas[clas$NumberOfFeatures < 100,]$NumberOfFeatures)
 
 # Datensaetze nach Groesse ordnen (n*p)
-
 clas = clas[order(clas$NumberOfFeatures * clas$NumberOfInstances), ]
+
+# Datensaetze mit mehr als 50 Kategorien in einer Variablen rausnehmen
+more = logical(nrow(clas))
+for(j in 1:nrow(clas)){
+  print(j)
+  task = try(getOMLTask(task.id = clas$task_id[j], verbosity=0))
+  classen = sapply(task$input$data.set$data, class)
+  indiz = which(classen == "character" | classen == "factor")
+  if(any(apply(as.data.frame(task$input$data.set$data[, indiz]), 2, function(x) length(unique(x))) > 50))
+    more[j] = TRUE
+}
+clas = clas[which(more == FALSE) ,]
 
 save(clas, file="/home/probst/Random_Forest/RFParset/results/clas.RData")
 
 # Datensaetze abspeichern
-for(j in 1:nrow(clas)){
-  print(j)
-  task = getOMLTask(task.id = clas$task_id[j], verbosity=0)
-  save(task, file = paste("/home/probst/Random_Forest/Parameter_Tuning/Simulation/Classification/Datasets/", j, ".RData", sep=""))
-  gc()
-}
+#for(j in 1:nrow(clas)){
+#  print(j)
+#  task = getOMLTask(task.id = clas$task_id[j], verbosity=0)
+#  save(task, file = paste("/home/probst/Random_Forest/Parameter_Tuning/Simulation/Classification/Datasets/", j, ".RData", sep=""))
+#  gc()
+#}
 
 ######################################################### Regression #########################################################
 
@@ -135,12 +146,24 @@ reg = reg[order(reg$NumberOfFeatures * reg$NumberOfInstances), ]
 # Nur 1 Feature = Target, das ist unsinnig
 reg = reg[-121, ]
 
+# Datensaetze mit mehr als 50 Kategorien in einer Variablen rausnehmen
+more2 = logical(nrow(reg))
+for(j in 1:nrow(reg)){
+  print(j)
+  task = try(getOMLTask(task.id = reg$task_id[j], verbosity=0))
+  classen = sapply(task$input$data.set$data, class)
+  indiz = which(classen == "character" | classen == "factor")
+  if(any(apply(as.data.frame(task$input$data.set$data[, indiz]), 2, function(x) length(unique(x))) > 50))
+    more2[j] = TRUE
+}
+reg = reg[more2 == FALSE ,]
+
 save(reg, file="/home/probst/Random_Forest/RFParset/results/reg.RData")
 
 # Datensaetze abspeichern
-for(j in 1:nrow(reg)){
-  print(j)
-  task = getOMLTask(task.id = reg$task_id[j], verbosity=0)
-  save(task, file = paste("/home/probst/Random_Forest/Parameter_Tuning/Simulation/Regression/Datasets/", j, ".RData", sep=""))
-  gc()
-}
+#for(j in 1:nrow(reg)){
+#  print(j)
+#  task = getOMLTask(task.id = reg$task_id[j], verbosity=0)
+#  save(task, file = paste("/home/probst/Random_Forest/Parameter_Tuning/Simulation/Regression/Datasets/", j, ".RData", sep=""))
+#  gc()
+#}
