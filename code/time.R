@@ -8,8 +8,8 @@ load("/home/probst/Random_Forest/RFParset/results/clas.RData")
 time1 = time2 = vector(mode = "list", length = nrow(clas))
 runs1 = runs2 = vector(mode = "list", length = nrow(clas))
 
-set.seed(1989) # 260 dauert sehr lange!
-for(j in 261:nrow(clas)){
+set.seed(1989) # 260 dauert sehr lange!, 265 und 266 auch!
+for(j in 267:nrow(clas)){
   print(j)
   task = try(getOMLTask(task.id = clas$task_id[j], verbosity=0))
   if(substr(task[1],1,5) != "Error"){
@@ -23,10 +23,20 @@ for(j in 261:nrow(clas)){
   time2[[j]] = system.time(runs2[[j]] <- try(rfsrc(as.formula(paste(task$input$data.set$target.features,"~.") ), data = task$input$data.set$data, replace = TRUE, ntree = 10000, importance = "none")$err.rate[,1]))
   }
   gc()
-  save(time1, time2, runs1, runs2, file = "/home/probst/Random_Forest/RFParset/results/clas_time.RData")
+   save(time1, time2, runs1, runs2, file = "/home/probst/Random_Forest/RFParset/results/clas_time2.RData")
+  # save(time1, time2, runs1, runs2, file = "/home/probst/Random_Forest/RFParset/results/clas_time.RData")
 }
 load("/home/probst/Random_Forest/RFParset/results/clas_time.RData")
 
+# Probleme wenn Number of Instances zu groß ist, Algorithmus braucht zu lange, bekommt nicht genug Speicher.
+
+Reduce(sum, lapply(time1,"[", 1)) # User
+Reduce(sum, lapply(time1,"[", 2)) # System
+Reduce(sum, lapply(time1,"[", 3)) # verstrichen
+# insgesamt 2/8 h (rfsrc dauert länger)
+
+hist(unlist(lapply(time1,"[", 3)))
+max(unlist(lapply(time1,"[", 3))) # 7894 Sek. (bestimmte Ausreißer könnte man rauslassen) 
 
 # Regressionen
 load("/home/probst/Random_Forest/RFParset/results/reg.RData")
@@ -46,3 +56,12 @@ for(j in 1:nrow(reg)){
   gc()
   save(time1, time2, runs1, runs2, file = "/home/probst/Random_Forest/RFParset/results/reg_time.RData")
 }
+load("/home/probst/Random_Forest/RFParset/results/reg_time.RData")
+
+Reduce(sum, lapply(time1,"[", 1)) # User
+Reduce(sum, lapply(time1,"[", 2)) # System
+Reduce(sum, lapply(time1,"[", 3)) # verstrichen
+# insgesamt 5 h
+
+hist(unlist(lapply(time1,"[", 3)))
+max(unlist(lapply(time1,"[", 3))) # 7894 Sek. (bestimmte Ausreißer könnte man rauslassen) 
