@@ -3,7 +3,7 @@ setwd("/home/probst/Random_Forest/RFParset/results")
 load("/home/probst/Random_Forest/RFParset/results/clas.RData")
 load("/home/probst/Random_Forest/RFParset/results/reg.RData")
 
-tasks = rbind(clas, reg)
+tasks = rbind(clas_small, reg_small)
 regis = makeExperimentRegistry(id = "par_randomForest", packages=c("randomForest", "OpenML"))
 
 # Add problem
@@ -15,13 +15,13 @@ gettask = function(static, idi) {
 
 addProblem(regis, id = "taski", static = tasks, dynamic = gettask, seed = 123)
 
-forest.wrapper = function(static, dynamic, ...) {
+forest.wrapper = function(static, dynamic, size = 0, ...) {
   if(static[static$task_id == dynamic$idi, 2] == "Supervised Classification") {
     err = randomForest(formula = dynamic$formula, data = dynamic$data, replace = TRUE, ...)$err.rate[,1]
   } else {
     err = randomForest(formula = dynamic$formula, data = dynamic$data, replace = TRUE, ...)$mse
   }
-  names(err) = 1:100
+  names(err) = 1:10000
   list(err = err, datainfo = c(static[static$task_id == dynamic$idi, c(1,2, 15, 13, 14, 18,19)]))
 }
 addAlgorithm(regis, id = "forest.ntree", fun = forest.wrapper, overwrite = TRUE)
@@ -41,21 +41,21 @@ addAlgorithm(regis, id = "forest.mtry", fun = forest.wrapper.mtry, overwrite = T
 
 pars = list(idi = tasks$task_id)
 task.design = makeDesign("taski", exhaustive = pars)
-pars = list(ntree = 100)
+pars = list(ntree = 10000)
 forest.design.ntree = makeDesign("forest.ntree", exhaustive = pars)
-pars = list(ntree = 100, nodesize = c(1:30))
+pars = list(ntree = 10000, nodesize = c(1,2,3,4,5,7,10,15,20,25,30))
 forest.design.nodesize = makeDesign("forest.nodesize", exhaustive = pars)
-pars = list(ntree = 100)
+pars = list(ntree = 10000)
 forest.design.mtry = makeDesign("forest.mtry", exhaustive = pars)
 
-addExperiments(regis, repls = 100, prob.designs = task.design, algo.designs = list(forest.design.ntree))
-addExperiments(regis, repls = 4, prob.designs = task.design, algo.designs = list(forest.design.nodesize))
-addExperiments(regis, repls = 4, prob.designs = task.design, algo.designs = list(forest.design.mtry))
+addExperiments(regis, repls = 30, prob.designs = task.design, algo.designs = list(forest.design.ntree)) # 12.5 h 
+addExperiments(regis, repls = 4, prob.designs = task.design, algo.designs = list(forest.design.nodesize)) # 16.5 h
+addExperiments(regis, repls = 4, prob.designs = task.design, algo.designs = list(forest.design.mtry)) # 33.33 h
 
 summarizeExperiments(regis)
 testJob(regis)
-submitJobs(regis)
-waitForJobs(regis)
+#submitJobs(regis)
+#waitForJobs(regis)
 
 
 

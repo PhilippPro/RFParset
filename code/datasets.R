@@ -68,7 +68,11 @@ for(j in 1:nrow(clas)){
 }
 clas = clas[which(more == FALSE) ,]
 
-save(clas, file="/home/probst/Random_Forest/RFParset/results/clas.RData")
+# Getrennte Analyse für kleine und große Datensätze
+clas_small = clas[which(clas$NumberOfInstances < 1000 & clas$NumberOfFeatures < 1000 & clas$NumberOfClasses < 30),]
+clas_big = clas[which(!(clas$NumberOfInstances < 1000 & clas$NumberOfFeatures < 1000 & clas$NumberOfClasses < 30)),]
+
+save(clas, clas_small, clas_big, file="/home/probst/Random_Forest/RFParset/results/clas.RData")
 
 # Datensaetze abspeichern
 #for(j in 1:nrow(clas)){
@@ -159,6 +163,12 @@ for(j in 1:nrow(reg)){
 reg = reg[more2 == FALSE ,]
 
 save(reg, file="/home/probst/Random_Forest/RFParset/results/reg.RData")
+
+# Getrennte Analyse für kleine und große Datensätze
+reg_small = reg[which(reg$NumberOfInstances < 1000 & reg$NumberOfFeatures < 1000),]
+reg_big = reg[which(!(reg$NumberOfInstances < 1000 & reg$NumberOfFeatures < 1000)),]
+
+save(reg, reg_small, reg_big, file="/home/probst/Random_Forest/RFParset/results/reg.RData")
 
 # Datensaetze abspeichern
 #for(j in 1:nrow(reg)){
