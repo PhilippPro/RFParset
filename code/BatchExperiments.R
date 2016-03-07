@@ -5,10 +5,7 @@ setwd(dir)
 load(paste(dir,"/clas.RData", sep = ""))
 load(paste(dir,"/reg.RData", sep = ""))
 
-cluster.functions = makeClusterFunctionsMulticore(ncpus=3)
-cluster.functions = makeClusterFunctionsTorque("torque.tmpl")
-
-setConfig(conf = list(cluster.functions = makeClusterFunctionsMulticore(3)))
+setConfig(conf = list(cluster.functions = makeClusterFunctionsMulticore(9)))
 
 tasks = rbind(clas_small, reg_small)
 regis = makeExperimentRegistry(id = "par_randomForest", packages=c("randomForest", "OpenML"))
@@ -61,8 +58,10 @@ addExperiments(regis, repls = 4, prob.designs = task.design, algo.designs = list
 
 summarizeExperiments(regis)
 testJob(regis)
+
 submitJobs(regis)
 #waitForJobs(regis)
 
-
+regis = loadRegistry("/home/probst/Random_Forest/RFParset/results/par_randomForest-files")
+showStatus(regis)
 
