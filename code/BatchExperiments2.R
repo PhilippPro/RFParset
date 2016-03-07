@@ -11,10 +11,11 @@ tasks = rbind(clas_small, reg_small)
 regis = makeExperimentRegistry(id = "par_randomForest2", packages=c("OpenML", "mlr", "randomForest", "ranger"))
 
 # Add problem
-gettask = function(static, idi) {
+gettask = function(static, idi, nodesize) {
   task = getOMLTask(task.id = idi, verbosity=0)$input$data.set
   list(idi = idi, data = task$data, formula = as.formula(paste(task$target.features,"~.") ), 
-       target = task$target.features, mtry_max = static[static$task_id == idi,]$NumberOfFeatures - 1)
+       target = task$target.features, mtry_max = static[static$task_id == idi,]$NumberOfFeatures - 1, 
+       min.node.size = ceiling(nodesize*nrow(task$data)/(10*4)))
 }
 addProblem(regis, id = "taski", static = tasks, dynamic = gettask, seed = 123)
 
@@ -82,12 +83,10 @@ forest.wrapper.nodesize = function(static, dynamic, ...) {
     as.numeric(auc)
   }
   
-  min.node.size = round(nodesize/(10*4))
-  
-  dynamic$data[,dynamic$target] = droplevels(dynamic$data[,dynamic$target])
   if(static[static$task_id == dynamic$idi, 2] == "Supervised Classification") {
+    dynamic$data[,dynamic$target] = droplevels(as.factor(dynamic$data[,dynamic$target]))
     pred = ranger(formula = dynamic$formula, data = dynamic$data, replace = TRUE, probability = TRUE,num.trees = 10000, 
-                  min.node.size = min.node.size, ... )$predictions
+                  min.node.size = dynamic$min.node.size, ... )$predictions
     pred2 = factor(colnames(pred)[max.col(pred)], levels = colnames(pred))
     conf.matrix = getConfMatrix2(dynamic, pred2, relative = TRUE)
     k = nrow(conf.matrix)
@@ -95,22 +94,22 @@ forest.wrapper.nodesize = function(static, dynamic, ...) {
                  measureMMCE(dynamic$data[,dynamic$target], pred2), multiclass.auc2(pred, pred2))
     names(measures) = c("ACC", "BER", "MMCE", "multi.AUC")
   } else {
-    pred = ranger(formula = dynamic$formula, data = dynamic$data, replace = TRUE, min.node.size = min.node.size, ...)$predictions
+    pred = ranger(formula = dynamic$formula, data = dynamic$data, replace = TRUE, min.node.size = dynamic$min.node.size, ...)$predictions
     measures = c(measureMAE(dynamic$data[,dynamic$target] , pred),  measureMEDAE(dynamic$data[,dynamic$target], pred), 
                  measureMEDSE(dynamic$data[,dynamic$target], pred), measureMSE(dynamic$data[,dynamic$target], pred))
     names(measures) = c("MAE", "MEDAE", "MEDSE", "MSE")
   }
-  list(measures = measures, datainfo = c(static[static$task_id == dynamic$idi, c(1, 2, 15, 13, 14, 18, 19)]), nodesize = min.node.size)
+  list(measures = measures, datainfo = c(static[static$task_id == dynamic$idi, c(1, 2, 15, 13, 14, 18, 19)]), nodesize = dynamic$min.node.size)
 }
 addAlgorithm(regis, id = "forest.nodesize", fun = forest.wrapper.nodesize, overwrite = TRUE)
 
-pars = list(idi = tasks$task_id[316])
+pars = list(idi = tasks$task_id[316], nodesize = c(1:10))
 task.design = makeDesign("taski", exhaustive = pars)
 # pars = list(ntree = 10000)
 # forest.design.ntree = makeDesign("forest.ntree", exhaustive = pars)
 # pars = list(ntree = 10000)
 # forest.design.mtry = makeDesign("forest.mtry", exhaustive = pars)
-pars = list(num.trees = 10000, nodesize = c(1:10))
+pars = list(num.trees = 10000)
 forest.design.nodesize = makeDesign("forest.nodesize", exhaustive = pars)
 
 # addExperiments(regis, repls = 30, prob.designs = task.design, algo.designs = list(forest.design.ntree)) # 12.5 h 
