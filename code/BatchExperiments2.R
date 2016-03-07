@@ -19,29 +19,29 @@ gettask = function(static, idi) {
 addProblem(regis, id = "taski", static = tasks, dynamic = gettask, seed = 123)
 
 # Add Algorithms
-forest.wrapper = function(static, dynamic, size = 0, ...) {
-  if(static[static$task_id == dynamic$idi, 2] == "Supervised Classification") {
-    err = randomForest(formula = dynamic$formula, data = dynamic$data, replace = TRUE, ...)$err.rate[,1]
-  } else {
-    err = randomForest(formula = dynamic$formula, data = dynamic$data, replace = TRUE, ...)$mse
-  }
-  names(err) = 1:10000
-  list(err = err, datainfo = c(static[static$task_id == dynamic$idi, c(1,2, 15, 13, 14, 18,19)]))
-}
-addAlgorithm(regis, id = "forest.ntree", fun = forest.wrapper, overwrite = TRUE)
+# forest.wrapper = function(static, dynamic, size = 0, ...) {
+#   if(static[static$task_id == dynamic$idi, 2] == "Supervised Classification") {
+#     err = randomForest(formula = dynamic$formula, data = dynamic$data, replace = TRUE, ...)$err.rate[,1]
+#   } else {
+#     err = randomForest(formula = dynamic$formula, data = dynamic$data, replace = TRUE, ...)$mse
+#   }
+#   names(err) = 1:10000
+#   list(err = err, datainfo = c(static[static$task_id == dynamic$idi, c(1,2, 15, 13, 14, 18,19)]))
+# }
+# addAlgorithm(regis, id = "forest.ntree", fun = forest.wrapper, overwrite = TRUE)
+# 
+# forest.wrapper.mtry = function(static, dynamic, ...) {
+#   err = matrix(NA, dynamic$mtry_max, 10001)
+#   colnames(err) = c("mtry_max", 1:10000)
+#   rownames(err) = 1:dynamic$mtry_max
+#   err[, 1] = 1:dynamic$mtry_max
+#   for(i in 1:dynamic$mtry_max)
+#     err[i, 2:10001] = randomForest(formula = dynamic$formula, data = dynamic$data, replace = TRUE, mtry = i, ...)$mse
+#   return(err)
+# }
+# addAlgorithm(regis, id = "forest.mtry", fun = forest.wrapper.mtry, overwrite = TRUE)
 
-forest.wrapper.mtry = function(static, dynamic, ...) {
-  err = matrix(NA, dynamic$mtry_max, 10001)
-  colnames(err) = c("mtry_max", 1:10000)
-  rownames(err) = 1:dynamic$mtry_max
-  err[, 1] = 1:dynamic$mtry_max
-  for(i in 1:dynamic$mtry_max)
-    err[i, 2:10001] = randomForest(formula = dynamic$formula, data = dynamic$data, replace = TRUE, mtry = i, ...)$mse
-  return(err)
-}
-addAlgorithm(regis, id = "forest.mtry", fun = forest.wrapper.mtry, overwrite = TRUE)
-
-forest.wrapper.nodesize = function(static, dynamic, size = 0, ...) {
+forest.wrapper.nodesize = function(static, dynamic, ...) {
   getConfMatrix2 = function(dynamic, pred, relative = TRUE) {
     cls = levels(dynamic$data[,dynamic$target])
     k = length(cls)
@@ -106,15 +106,15 @@ addAlgorithm(regis, id = "forest.nodesize", fun = forest.wrapper.nodesize, overw
 
 pars = list(idi = tasks$task_id[316])
 task.design = makeDesign("taski", exhaustive = pars)
-pars = list(ntree = 10000)
-forest.design.ntree = makeDesign("forest.ntree", exhaustive = pars)
-pars = list(ntree = 10000)
-forest.design.mtry = makeDesign("forest.mtry", exhaustive = pars)
-pars = list(num.trees = 10000, nodesize= c(1:10))
+# pars = list(ntree = 10000)
+# forest.design.ntree = makeDesign("forest.ntree", exhaustive = pars)
+# pars = list(ntree = 10000)
+# forest.design.mtry = makeDesign("forest.mtry", exhaustive = pars)
+pars = list(num.trees = 10000, nodesize = c(1:10))
 forest.design.nodesize = makeDesign("forest.nodesize", exhaustive = pars)
 
-addExperiments(regis, repls = 30, prob.designs = task.design, algo.designs = list(forest.design.ntree)) # 12.5 h 
-addExperiments(regis, repls = 4, prob.designs = task.design, algo.designs = list(forest.design.mtry)) # 33.33 h
+# addExperiments(regis, repls = 30, prob.designs = task.design, algo.designs = list(forest.design.ntree)) # 12.5 h 
+# addExperiments(regis, repls = 4, prob.designs = task.design, algo.designs = list(forest.design.mtry)) # 33.33 h
 addExperiments(regis, repls = 2, prob.designs = task.design, algo.designs = list(forest.design.nodesize)) # 16.5 h
 
 
