@@ -8,7 +8,7 @@ datasets = listOMLDataSets()
 tasks = listOMLTasks()
 tasktypes = listOMLTaskTypes()
 
-clas = subset(tasks, task_type == "Supervised Classification") # 1860 Class.-Tasks
+clas = subset(tasks, task.type == "Supervised Classification") # 1860 Class.-Tasks
 
 # nur Datensaetze ohne NA-Werte
 clas = clas[!(clas$name %in% clas$name[clas$NumberOfMissingValues != 0]), ]
@@ -94,7 +94,7 @@ tasks = listOMLTasks()
 tasktypes = listOMLTaskTypes()
 
 tasktypes
-reg = subset(tasks, task_type == "Supervised Regression") # 1854 Regr.-Tasks
+reg = subset(tasks, task.type == "Supervised Regression") # 1854 Regr.-Tasks
 # nur Datensaetze ohne NA-Werte
 reg = reg[!(reg$name %in% reg$name[reg$NumberOfMissingValues != 0]), ]
 
