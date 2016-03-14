@@ -37,5 +37,3 @@ multiclass.auc2 = function(pred, pred2){
   auc = pROC::multiclass.roc(response = pred2, predictor = predV)$auc
   as.numeric(auc)
 }
-
-
