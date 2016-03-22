@@ -27,13 +27,12 @@ getConfMatrix2 = function(dynamic, pred, relative = TRUE) {
   return(result)
 }
 
-multiclass.auc2 = function(pred, pred2){
-  resp = pred2
+multiclass.auc2 = function(pred, resp){
   predP = pred
   # choose the probablity of the choosen response
   predV = vnapply(seq_row(pred), function(i) {
     pred[i, resp[i]]
   })
-  auc = pROC::multiclass.roc(response = pred2, predictor = predV)$auc
+  auc = pROC::multiclass.roc(response = resp, predictor = predV)$auc
   as.numeric(auc)
 }
