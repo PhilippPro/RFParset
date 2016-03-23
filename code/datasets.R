@@ -68,11 +68,22 @@ for(j in 1:nrow(clas)){
 }
 clas = clas[which(more == FALSE) ,]
 
+# Offensichtlich gleiche Datensaetze entfernen
+raus = c(9962, 3633, 40, 3692, 3660, 3794, 3770, 3771, 3772, 3053, 9936, 3736, 10098, 10099, 10100, 3903, 3672, 3681, 3839, 9943, 3688, 9972, 3618, 3764, 145, 202, 3925, 3895, 3990, 151, 
+         220, 221, 224, 226, 225, 228, 227, 3506, 205, 207, 2262, 209, 150, 138, 210, 211, 152, 148, 146,137, 155, 132, 2136, 133, 216, 144, 201, 141, 140)
+clas = clas[!(clas$task_id %in% raus),]
+
 # Getrennte Analyse für kleine und große Datensätze
 clas_small = clas[which(clas$NumberOfInstances < 1000 & clas$NumberOfFeatures < 1000 & clas$NumberOfClasses < 30),]
 clas_big = clas[which(!(clas$NumberOfInstances < 1000 & clas$NumberOfFeatures < 1000 & clas$NumberOfClasses < 30)),]
 
 save(clas, clas_small, clas_big, file="/home/probst/Random_Forest/RFParset/results/clas.RData")
+
+
+
+
+
+
 
 # Datensaetze abspeichern
 #for(j in 1:nrow(clas)){
@@ -162,7 +173,9 @@ for(j in 1:nrow(reg)){
 }
 reg = reg[more2 == FALSE ,]
 
-save(reg, file="/home/probst/Random_Forest/RFParset/results/reg.RData")
+# Offensichtlich gleiche Datensaetze entfernen
+raus = c(4993, 5013, 5023, 2280, 2313)
+reg = reg[!(reg$task_id %in% raus),]
 
 # Getrennte Analyse für kleine und große Datensätze
 reg_small = reg[which(reg$NumberOfInstances < 1000 & reg$NumberOfFeatures < 1000),]

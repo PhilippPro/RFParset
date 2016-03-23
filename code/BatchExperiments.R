@@ -25,8 +25,8 @@ addProblem(regis, id = "taski", static = tasks, dynamic = gettask, seed = 123)
 
 # Add Algorithms
 forest.wrapper.ntree = function(static, dynamic, size = 0, ...) {
-  dynamic$data[,dynamic$target] = droplevels(as.factor(dynamic$data[,dynamic$target]))
   if(static[static$task_id == dynamic$idi, 2] == "Supervised Classification") {
+    dynamic$data[,dynamic$target] = droplevels(as.factor(dynamic$data[,dynamic$target]))
     err = randomForest(formula = dynamic$formula, data = dynamic$data, replace = TRUE, ...)$err.rate[,1]
   } else {
     err = randomForest(formula = dynamic$formula, data = dynamic$data, replace = TRUE, ...)$mse
