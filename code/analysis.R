@@ -1,30 +1,49 @@
 library("BatchExperiments")
 dir = "/home/probst/Random_Forest/RFParset"
-regis = loadRegistry("/home/probst/Random_Forest/RFParset/results/par_randomForest-files")
+regis = loadRegistry("/home/probst/Random_Forest/RFParset/results/par_randomForest_ntree_grid-files")
 load(paste(dir,"/results/clas.RData", sep = ""))
 load(paste(dir,"/results/reg.RData", sep = ""))
 tasks = rbind(clas_small, reg_small)
 
-
+# ntree
 ids = findExperiments(reg = regis, ids = findDone(regis), algo.pattern = "forest.ntree", prob.pars = (idi %in% clas_small$task_id))
 res = loadResults(regis, ids)
 # unlist(sapply(res, "[[", 2)[1,]); take always 30 consecutive results and aggregate them
-for (i in 151:190)
-plot(rowMeans(sapply(res[c(30*(i-1)+1):c(30*i)], "[[", 1)), type = "l", main = i)
-
-
-ids = findExperiments(reg = regis, ids = findDone(regis), algo.pattern = "forest.parset", prob.pars = (idi %in% clas_small$task_id))
-res = loadResults(regis, ids)
-for (i in 1:50)
-  plot(rowMeans(sapply(res[c(10*(i-1)+1):c(10*i)], "[[", 1)), type = "l", main = i)
-
+pdf(paste(dir,"/results/graphics/clas_ntree.pdf", sep = ""),width=6,height=6)
+par(mfrow = c(3,3))
+for (i in 1:190)
+ plot(rowMeans(sapply(res[c(30*(i-1)+1):c(30*i)], "[[", 1)), type = "l", main = i, xlab = "ntree", ylab = "oob mmce")
+dev.off()
 
 ids = findExperiments(reg = regis, ids = findDone(regis), algo.pattern = "forest.ntree", prob.pars = (idi %in% reg_small$task_id))
 res = loadResults(regis, ids)
-# unlist(sapply(res, "[[", 2)[1,]); take always 30 consecutive results and aggregate them
-for (i in 1:50)
-  plot(rowMeans(sapply(res[c(30*(i-1)+1):c(30*i)], "[[", 1)), type = "l", main = i)
+pdf(paste(dir,"/results/graphics/reg_ntree_2000.pdf", sep = ""),width=6,height=6)
+par(mfrow = c(3,3))
+for (i in 1:111)
+  plot(rowMeans(sapply(res[c(30*(i-1)+1):c(30*i)], "[[", 1))[1:2000], type = "l", main = i, xlab = "ntree", ylab = "oob mse")
+dev.off()
 
-res[[1]]
-res$da
-?loadResult
+# mtry - nodesize
+ids = findExperiments(reg = regis, algo.pattern = "forest.parset", prob.pars = ((idi %in% clas_small$task_id) ))
+res = loadResults(regis, ids)
+
+# Transform to matrix
+
+res_mat <- matrix(sapply(res, "[[", 1)[4,] , 12, 13, byrow = TRUE)
+colnames(res_mat) = c(-5, -1, 0.0000001, seq(1/40, 1/4, length.out = 10))
+rownames(res_mat) = c(-1, 0.0000001, seq(1/10, 1, length.out = 10))
+res_mat
+
+#sapply(res, "[[", 1)
+#sapply(res, "[[", 4)[2,]
+
+# Make heatmap tables
+library(reshape2)
+library(ggplot2)
+
+scheee = melt(res_mat)
+ggplot(scheee, aes(as.factor(Var1), as.factor(Var2), group=Var2)) +
+  geom_tile(aes(fill = value)) + 
+  geom_text(aes(fill = scheee$value, label = round(scheee$value, 1))) +
+  scale_fill_gradient(low = "white", high = "blue") 
+
