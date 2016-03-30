@@ -5,26 +5,57 @@ setwd(paste(dir,"/results", sep = ""))
 load(paste(dir,"/results/clas.RData", sep = ""))
 load(paste(dir,"/results/reg.RData", sep = ""))
 
-setConfig(conf = list(cluster.functions = makeClusterFunctionsMulticore(11)))
+setConfig(conf = list(cluster.functions = makeClusterFunctionsMulticore(9)))
 
 tasks = rbind(clas_small, reg_small)
-tasks = tasks[20,]
+tasks = tasks
 regis = makeExperimentRegistry(id = "par_randomForest_ntree_grid", packages=c("OpenML", "mlr", "randomForest", "ranger"), 
                                work.dir = paste(dir,"/results", sep = ""), src.dirs = paste(dir,"/functions", sep = ""), seed = 1)
 
 # Add problem
-gettask = function(static, idi, rel.mtry = NULL, rel.nodesize = 0.0000001, sample.fraction = ifelse(replace, 1, 0.632), 
+gettask = function(static, idi, rel.mtry = "sqrt(p)", rel.nodesize = "one" , sample.fraction = 1, 
                    replace = TRUE, respect.unordered.factors = FALSE) {
   task = getOMLTask(task.id = idi, verbosity=0)$input$data.set
-  mtry = ifelse(rel.mtry == -1, floor(sqrt(ncol(task$data))), ceiling(as.numeric(as.character(rel.mtry)) * (ncol(task$data)-1)))
-  min.node.size = ifelse(rel.nodesize == -1, 1, ifelse(rel.nodesize == -5, 5, ceiling(as.numeric(as.character(rel.nodesize))*nrow(task$data))))
+
+  # mtry
+  if (rel.mtry == "log(p)"){
+    mtry = floor(log(ncol(task$data) - 1))
+  } else {
+    if (rel.mtry == "sqrt(p)") {
+      mtry = floor(sqrt(ncol(task$data) - 1))
+    } else {
+      if (rel.mtry == "one") {
+        mtry = 1
+      } else 
+        mtry = ceiling(as.numeric(as.character(rel.mtry)) * (ncol(task$data)-1))
+    }
+  }
   
+  # min.node.size
+  if (rel.nodesize == "log(n)"){
+    min.node.size = floor(log(nrow(task$data)))
+  } else {
+    if (rel.nodesize == "sqrt(n)") {
+      min.node.size = floor(sqrt(nrow(task$data) - 1))
+    } else {
+      if (rel.nodesize == "one") {
+        min.node.size = 1
+      } else {
+        if (rel.nodesize == "five") {
+          min.node.size = 5
+        } else {
+          min.node.size = ceiling(as.numeric(as.character(rel.nodesize))*nrow(task$data))
+        }
+      }
+    }
+  }
+ 
   list(idi = idi, data = task$data, formula = as.formula(paste(task$target.features,"~.") ), 
        target = task$target.features,
        mtry = mtry, 
-       rel.mtry = as.numeric(as.character(rel.mtry)),
+       rel.mtry = rel.mtry,
        min.node.size = min.node.size,
-       rel.nodesize = as.numeric(as.character(rel.nodesize)),
+       rel.nodesize = rel.nodesize,
        sample.fraction = sample.fraction,
        replace = replace, 
        respect.unordered.factors = respect.unordered.factors)
@@ -66,7 +97,7 @@ forest.wrapper.parset = function(static, dynamic, ...) {
     time = system.time(pred <- ranger(formula = dynamic$formula, data = dynamic$data, 
                                       mtry = dynamic$mtry, sample.fraction = dynamic$sample.fraction, 
                                       min.node.size = dynamic$min.node.size, 
-                                      replace = dynamic$replace, probability = TRUE, 
+                                      replace = dynamic$replace, 
                                       respect.unordered.factors = dynamic$respect.unordered.factors, ... )$predictions)
     measures = c(measureMAE(dynamic$data[,dynamic$target] , pred),  measureMEDAE(dynamic$data[,dynamic$target], pred), 
                  measureMEDSE(dynamic$data[,dynamic$target], pred), measureMSE(dynamic$data[,dynamic$target], pred))
@@ -85,44 +116,55 @@ pars = list(ntree = 10000)
 forest.design.ntree = makeDesign("forest.ntree", exhaustive = pars)
 pars = list(idi = tasks$task_id)
 task.design = makeDesign("taski", exhaustive = pars)
-addExperiments(regis, repls = 30, prob.designs = task.design, algo.designs = list(forest.design.ntree)) # 1: ca. 5 Minuten
+# addExperiments(regis, repls = 100, prob.designs = task.design, algo.designs = list(forest.design.ntree)) # 1: ca. 5 Minuten
 
+ps = list()
 # Dataframe with gridded parameter settings, that should be tested
-ps = makeParamSet(
-  makeDiscreteParam("rel.nodesize", values = c(-1, -5, 0.0000001, seq(1/40, 1/4, length.out = 10))), # -1, -5 values for default, 0.0000001 for 1
-  makeDiscreteParam("rel.mtry", values = c(-1, 0.0000001, seq(1/10, 1, length.out = 10))) # -1 for \sqrt(p)
+ps[[1]] = makeParamSet(
+  makeDiscreteParam("rel.nodesize", values = c("log(n)", "sqrt(n)", "one", "five", seq(1/40, 1/4, length.out = 10))), # -1, -5 values for default, 0.0000001 for 1
+  makeDiscreteParam("rel.mtry", values = c("log(p)", "sqrt(p)", "one", seq(1/10, 1, length.out = 10))) # -1 for \sqrt(p)
+)
+ps[[2]] = makeParamSet(
+  makeDiscreteParam("rel.nodesize", values = c("log(n)", "sqrt(n)", "one", "five", seq(1/40, 1/4, length.out = 10))), # -1, -5 values for default, 0.0000001 for 1
+  makeDiscreteParam("sample.fraction", values = c(seq(1/40, 1, length.out = 40))) # -1 for \sqrt(p)
+)
+ps[[3]] = makeParamSet(
+  makeLogicalParam("replace"), # -1, -5 values for default, 0.0000001 for 1
+  makeDiscreteParam("sample.fraction", values = c(seq(1/40, 1, length.out = 40))) # -1 for \sqrt(p)
+)
+ps[[4]] = makeParamSet(
+makeLogicalParam("respect.unordered.factors")
 )
 
-ps = makeParamSet(
-  makeNumericParam("rel.nodesize", values = c(-5, -1, 0.0000001, seq(1/40, 1/4, length.out = 10))), # -1, -5 values for default, 0.0000001 for 1
-  makeDiscreteParam("rel.mtry", values = c(-1, 0.0000001, seq(1/10, 1, length.out = 10))) # -1 for \sqrt(p)
-)
-
-
-n = 10
-grid.design = generateGridDesign(ps)
-grid.design = data.frame(idi = rep(tasks$task_id, each = nrow(grid.design)), grid.design[rep(1:nrow(grid.design), nrow(tasks)) ,])
-
-grid.design = makeDesign("taski", design = grid.design)
+grid.design = list()
+for (i in 1:length(ps)){
+  grid.design[[i]] = generateGridDesign(ps[[i]])
+  namen = colnames(grid.design[[i]])
+  n_exp = nrow(grid.design[[i]])
+  grid.design[[i]] = as.data.frame(grid.design[[i]][rep(1:nrow(grid.design[[i]]), nrow(tasks)) ,])
+  colnames(grid.design[[i]]) = namen
+  grid.design[[i]] = data.frame(idi = rep(tasks$task_id, each = n_exp), grid.design[[i]])
+  grid.design[[i]] = makeDesign("taski", design = grid.design[[i]])
+}
 
 pars = list(num.trees = 10000)
 forest.design.parset = makeDesign("forest.parset", exhaustive = pars)
 
 # Send experiments
-addExperiments(regis, repls = 1, prob.designs = grid.design, algo.designs = list(forest.design.parset)) # 1 replication enough, as rf quite stabilized at 10000 trees (see quantiles for verification)
+addExperiments(regis, repls = 1, prob.designs = grid.design[[4]], algo.designs = list(forest.design.parset)) # 1 replication enough, as rf quite stabilized at 10000 trees (see quantiles for verification)
 summarizeExperiments(regis)
 id = findExperiments(regis, algo.pattern = "forest.parset")
-testJob(regis, id[1000])
+testJob(regis, id[100])
 
 # Chunk jobs
 chunk1 = list()
-for(i in 1:30)
+for(i in 1:100)
   chunk1[[i]] = c(findExperiments(regis, algo.pattern = "forest.ntree", repls=i))
 chunk2 = chunk(findExperiments(regis, algo.pattern = "forest.parset"), chunk.size = nrow(tasks))
 
 chunks = c(chunk1, chunk2)
 
-submitJobs(regis, ids = chunk2)
+submitJobs(regis, ids = chunks)
 
 #waitForJobs(regis)
 
