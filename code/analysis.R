@@ -8,20 +8,46 @@ tasks = rbind(clas_small, reg_small)
 # ntree
 ids = findExperiments(reg = regis, ids = findDone(regis), algo.pattern = "forest.ntree", prob.pars = (idi %in% clas_small$task_id))
 res = loadResults(regis, ids)
-# unlist(sapply(res, "[[", 2)[1,]); take always 30 consecutive results and aggregate them
+# unlist(sapply(res, "[[", 2)[1,]); take always 100 consecutive results and aggregate them
 pdf(paste(dir,"/results/graphics/clas_ntree.pdf", sep = ""), width = 6, height = 6)
 par(mfrow = c(3,3))
-for (i in 1:190)
- plot(rowMeans(sapply(res[c(30*(i-1)+1):c(30*i)], "[[", 1)), type = "l", main = i, xlab = "ntree", ylab = "oob mmce")
-  quantile(sapply(res[c(30*(i-1)+1):c(30*i)], "[[", 1))
+for (i in 1:190){
+ print(i)
+ upper = apply(sapply(res[c(100*(i-1)+1):c(100*i)], "[[", 1), 1, function(x) quantile(x,0.95))
+ lower = apply(sapply(res[c(100*(i-1)+1):c(100*i)], "[[", 1), 1, function(x) quantile(x,0.05))
+ meani = rowMeans(sapply(res[c(100*(i-1)+1):c(100*i)], "[[", 1))
+ plot(meani, type = "l", main = i, xlab = "ntree", ylab = "oob mmce", ylim = range(c(upper[100:10000], lower[100:10000], meani)))
+ lines(1:10000, upper, col = "red")
+ lines(1:10000, lower, col = "blue")
+}
 dev.off()
 
 ids = findExperiments(reg = regis, ids = findDone(regis), algo.pattern = "forest.ntree", prob.pars = (idi %in% reg_small$task_id))
 res = loadResults(regis, ids)
 pdf(paste(dir,"/results/graphics/reg_ntree_2000.pdf", sep = ""),width=6,height=6)
 par(mfrow = c(3,3))
-for (i in 1:111)
-  plot(rowMeans(sapply(res[c(30*(i-1)+1):c(30*i)], "[[", 1))[1:2000], type = "l", main = i, xlab = "ntree", ylab = "oob mse")
+for (i in 1:111){
+  print(i)
+  upper = apply(sapply(res[c(100*(i-1)+1):c(100*i)], "[[", 1), 1, function(x) quantile(x,0.95))
+  lower = apply(sapply(res[c(100*(i-1)+1):c(100*i)], "[[", 1), 1, function(x) quantile(x,0.05))
+  meani = rowMeans(sapply(res[c(100*(i-1)+1):c(100*i)], "[[", 1))
+  plot(meani[1:2000], type = "l", main = i, xlab = "ntree", ylab = "oob mse", ylim = range(c(upper[100:2000], lower[100:2000], meani[1:2000])))
+  lines(1:2000, upper[1:2000], col = "red")
+  lines(1:2000, lower[1:2000], col = "blue")
+}
+dev.off()
+
+pdf(paste(dir,"/results/graphics/reg_ntree.pdf", sep = ""),width=6,height=6)
+par(mfrow = c(3,3))
+for (i in 1:111){
+  print(i)
+  upper = apply(sapply(res[c(100*(i-1)+1):c(100*i)], "[[", 1), 1, function(x) quantile(x,0.95))
+  lower = apply(sapply(res[c(100*(i-1)+1):c(100*i)], "[[", 1), 1, function(x) quantile(x,0.05))
+  meani = rowMeans(sapply(res[c(100*(i-1)+1):c(100*i)], "[[", 1))
+  plot(meani, type = "l", main = i, xlab = "ntree", ylab = "oob mse", ylim = range(c(upper[100:10000], lower[100:10000], meani[1:10000])))
+  lines(1:10000, upper[1:10000], col = "red")
+  lines(1:10000, lower[1:10000], col = "blue")
+}
 dev.off()
 
 # mtry - nodesize
