@@ -271,13 +271,6 @@ pars = list(idi = tasks$task_id)
 task.design = makeDesign("taski", exhaustive = pars)
 addExperiments(regis, repls = 100, prob.designs = task.design, algo.designs = list(forest.design.ntree)) # 1: ca. 5 Minuten
 
-pars = list(ntree = 10000)
-forest.design.ntree.rfsrc = makeDesign("forest.ntree.rfsrc", exhaustive = pars)
-pars = list(idi = tasks$task_id)
-task.design = makeDesign("taski", exhaustive = pars)
-addExperiments(regis, repls = 100, prob.designs = task.design, algo.designs = list(forest.design.ntree.rfsrc)) # 1: ca. 5 Minuten
-
-
 # ntree with rfsrc
 pars = list(ntree = 10000)
 forest.design.ntree.rfsrc = makeDesign("forest.ntree.rfsrc", exhaustive = pars)
@@ -397,7 +390,7 @@ for(i in c(1, 8:16))
   addExperiments(regis, repls = 1, prob.designs = grid.design[[i]], algo.designs = list(forest.design.randomForestSRC)) # 1 replication enough, as rf quite stabilized at 10000 trees (see quantiles for verification)
 
 summarizeExperiments(regis)
-id = findExperiments(regis, algo.pattern = "forest.parset")
+id = findExperiments(regis, algo.pattern = "forest.ntree.rfsrc")
 testJob(regis, id[100])
 
 # Chunk jobs
@@ -417,14 +410,9 @@ submitJobs(regis, a)
 #regis = loadRegistry("/home/probst/Random_Forest/RFParset/results/par_randomForest_ntree_grid-files")
 #showStatus(regis)
 
-removeExperiments(regis, ids = findNotDone(regis))
-
 rest = chunk(findNotDone(regis), chunk.size = nrow(tasks))
 rest = chunk(findErrors(regis), chunk.size = nrow(tasks))
 submitJobs(regis, ids = rest)
-
-
-
 
 
 
