@@ -1,3 +1,87 @@
+# Installation of OpenML
+install.packages(c("mlr", "checkmate", "data.table", "digest", "RCurl", "stringi", "XML", "RWeka", "devtools"))
+devtools::install_github("openml/r")   
+library(OpenML)
+saveOMLConfig(apikey = "put_here_your_key_from_openml.org")
+
+task = getOMLTask(task.id = 3595, verbosity=0) 
+library(randomForestSRC)  
+run = matrix(NA, 1000, 2000)  
+set.seed(105)
+for(i in 1:1000){
+  print(paste(i))
+  run[i,] = rfsrc(binaryClass ~., data = task$input$data.set$data, ntree = 2000, importance="none", mtry=2, nodesize = 1)$err.rate[,1]
+}
+runs = apply(run, 2, mean)
+quant1 = apply(run, 2, function(x) quantile(x, 0.25))
+quant2 = apply(run, 2, function(x) quantile(x, 0.75))
+plot(runs, type="l", ylim = c(min(runs, quant1, quant2), max(runs,quant1, quant2)))
+lines(1:2000, quant1, col = "red")
+lines(1:2000, quant2, col = "green")
+
+
+
+
+Probably this is related to randomForest vs randomForestSRC discrepancies.
+
+When training this dataset it seems, that concerning the mean missclassification error less trees are better than more in the R-package RandomForestSRC. Is there a specific reason for this? Until now I thought that more trees are always better.
+
+# Installation of OpenML
+install.packages(c("mlr", "checkmate", "data.table", "digest", "RCurl", "stringi", "XML", "RWeka", "devtools"))
+devtools::install_github("openml/r")   
+library(OpenML)
+saveOMLConfig(apikey = "put_here_your_key_from_openml.org")
+
+task = getOMLTask(task.id = 3595, verbosity=0) 
+library(randomForestSRC)  
+run = matrix(NA, 1000, 2000)  
+set.seed(105)
+for(i in 1:1000){
+  print(paste(i))
+  run[i,] = rfsrc(binaryClass ~., data = task$input$data.set$data, ntree = 2000, importance="none", mtry=2, nodesize = 1)$err.rate[,1]
+}
+runs = apply(run, 2, mean)
+quant1 = apply(run, 2, function(x) quantile(x, 0.25))
+quant2 = apply(run, 2, function(x) quantile(x, 0.75))
+plot(runs, type="l", ylim = c(min(runs, quant1, quant2), max(runs,quant1, quant2)))
+lines(1:2000, quant1, col = "red")
+lines(1:2000, quant2, col = "green")
+
+enter image description here
+
+I tried to calculate the same thing with randomForest package, but the results were quite different. Here the curve continues to decrease with adding more trees.
+
+library(randomForest)
+run = matrix(NA, 1000, 2000)  
+set.seed(105)
+for(i in 1:1000){
+  print(paste(i))
+  run[i,] = randomForest(binaryClass ~., data = task$input$data.set$data, ntree = 2000, mtry=2, nodesize = 1)$err.rate[,1]
+}
+runs = apply(run, 2, mean)
+quant1 = apply(run, 2, function(x) quantile(x, 0.25))
+quant2 = apply(run, 2, function(x) quantile(x, 0.75))
+plot(runs, type="l", ylim = c(min(runs, quant1, quant2), max(runs,quant1, quant2)))
+lines(1:2000, quant1, col = "red")
+lines(1:2000, quant2, col = "green")
+
+library(OpenML)
+task = getOMLTask(task.id = 3548, verbosity=0) 
+library(randomForest)
+run = matrix(NA, 1000, 2000)  
+set.seed(108)
+for(i in 1:1000){
+  print(paste(i))
+  run[i,] = randomForest(Type ~., data = task$input$data.set$data, ntree = 2000)$err.rate[,1]
+}
+runs = apply(run, 2, mean)
+quant1 = apply(run, 2, function(x) quantile(x, 0.25))
+quant2 = apply(run, 2, function(x) quantile(x, 0.75))
+plot(runs, type="l", ylim = c(min(runs, quant1, quant2), max(runs,quant1, quant2)))
+lines(1:2000, quant1, col = "red")
+lines(1:2000, quant2, col = "green")
+
+# why is it like that? Answer...
 library(OpenML)
 task = getOMLTask(task.id = 3548, verbosity=0) 
 library(randomForest)
@@ -55,31 +139,47 @@ erg_ges
 #27     0   200     0     0      0    200      0      0          o
 
 
+# ranger
 # AUC
 
 library(OpenML)
-task = getOMLTask(task.id = 3548, verbosity=0) 
-library(ranger)
-run = matrix(NA, 100, 2000)  
+library(mlr)
+task = getOMLTask(task.id = 3595, verbosity=0) 
+target = task$input$data.set$target
+data = task$input$data.set$data
+library(randomForestSRC)
+measures = list(matrix(NA, 100, 4), matrix(NA, 100, 4))
 set.seed(108)
+ntrees = c(100,3000)
 for(i in 1:100){
   print(paste(i))
-  run[i,] = ranger(Type ~., data = task$input$data.set$data, num.trees = 2000, probability = TRUE)$predictions
+  for(j in 1:2){
+    pred = rfsrc(binaryClass ~., data = data, ntree = ntrees[j] , importance="none", mtry=2, nodesize = 1)$predicted.oob
+    pred2 = factor(colnames(pred)[max.col(pred)], levels = colnames(pred))
+    conf.matrix = getConfMatrix2(task$input$data.set, pred2, relative = TRUE)
+    k = nrow(conf.matrix)
+    AUC = -1
+    AUCtry = try(multiclass.auc2(pred, data[,target]))
+    if(is.numeric(AUCtry))
+      AUC = AUCtry
+    measures[[j]][i, ] = c(measureACC(data[, target], pred2), mean(conf.matrix[-k, k]), 
+                           measureMMCE(data[, target], pred2), AUC)
+  }
 }
-runs = apply(run, 2, mean)
-quant1 = apply(run, 2, function(x) quantile(x, 0.25))
-quant2 = apply(run, 2, function(x) quantile(x, 0.75))
-plot(runs, type="l", ylim = c(min(runs, quant1, quant2), max(runs,quant1, quant2)))
-lines(1:2000, quant1, col = "red")
-lines(1:2000, quant2, col = "green")
+# Balanced Error Rate
+mean(measures[[1]][,2])
+# 0.1610566
+mean(measures[[2]][,2])
+#  0.1652832
+# Mean Missclassification Error
+mean(measures[[1]][,3])
+# 0.1329545
+ mean(measures[[2]][,3])
+# 0.1361364
+#AUC
+ mean(measures[[1]][,4])
+# 0.7696296
+ mean(measures[[2]][,4])
+# 0.7755664
 
 
-preds = list(matrix(NA, 200, 27), matrix(NA, 200, 27))
-set.seed(123)
-for (i in 1:200){
-  print(i)
-  preds[[1]][i,] = randomForest(Type ~., data = task$input$data.set$data, ntree = 100)$predicted
-  preds[[2]][i,] = randomForest(Type ~., data = task$input$data.set$data, ntree = 3000)$predicted
-}
-
-multiclass.auc2(pred, dynamic$data[,dynamic$target])
