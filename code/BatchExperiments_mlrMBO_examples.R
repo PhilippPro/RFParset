@@ -3,7 +3,6 @@ library(mlrMBO)
 learner_km = makeLearner("regr.km", predict.type = "se", covtype = "matern3_2")
 
 
-
 # Budget
 f.evals = 24#200L
 mbo.init.design.size = 20L

@@ -182,7 +182,7 @@ forest.wrapper.randomForest = function(static, dynamic, ...) {
                        sample.fraction = dynamic$sample.fraction, replace = dynamic$replace, 
                        maxnodes = dynamic$maxnodes, rel.maxnodes = dynamic$rel.maxnodes))
 }
-addAlgorithm(regis, id = "forest.randomForest", fun = forest.wrapper.parset, overwrite = TRUE)
+addAlgorithm(regis, id = "forest.randomForest", fun = forest.wrapper.randomForest, overwrite = TRUE)
 
 # ranger
 forest.wrapper.ranger = function(static, dynamic, ...) {
@@ -390,7 +390,7 @@ for(i in c(1, 8:16))
   addExperiments(regis, repls = 1, prob.designs = grid.design[[i]], algo.designs = list(forest.design.randomForestSRC)) # 1 replication enough, as rf quite stabilized at 10000 trees (see quantiles for verification)
 
 summarizeExperiments(regis)
-id = findExperiments(regis, algo.pattern = "forest.ntree.rfsrc")
+id = findExperiments(regis, algo.pattern = "forest.randomForestSRC")
 testJob(regis, id[100])
 
 # Chunk jobs

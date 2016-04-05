@@ -1,19 +1,71 @@
 library(mlrMBO)
 library(mlr)
 
-#learner_km = makeLearner("regr.km", predict.type = "se", covtype = "matern3_2")
+# Define the regression task
+data(airquality)
+# delete NA values
+airquality = airquality[!apply(is.na(airquality),1, function(x) any(x) ),]
 
-n1 = 10; n2 = 2;
-mbo.ctrl = makeMBOControl(save.on.disk.at = integer(0L))
-mbo.ctrl = setMBOControlTermination(mbo.ctrl, iters = n2)
+# Define our target function
+# Measures: MSE
+performan = function(x)  {
+  pred <- ranger(formula = Ozone ~ . , data = airquality, sample.fraction = x$sample.fraction, replace = x$replace, 
+                 num.trees = 10000)$predictions
+  measureMSE(airquality$Ozone, pred)
+}
 
-
-ctrl = makeTuneControlMBO(learner = makeLearner("regr.lm"), mbo.control = mbo.ctrl, mbo.design = des)
-
+# Its ParamSet
 ps = makeParamSet(
-  makeIntegerParam("ntree", lower = 10, upper = 50),
-  makeNumericVectorParam("cutoff", len = 3, lower = 0.001, upper = 1, trafo = function(x) 0.9*x/sum(x))
+  makeLogicalParam("replace"),
+  makeNumericParam("sample.fraction", lower = 0.05, upper = 1),
+  makeDiscreteParam("min.node.size", values = 1:10),
+  makeDiscreteParam("mtry", values = 1:5)
 )
-ctrl$mbo.design = generateDesign(n1, ps, fun = lhs::maximinLHS)
 
-tr = tuneParams("classif.randomForest", multiclass.task, res, par.set = ps, control = ctrl)
+# Budget
+f.evals = 40
+mbo.init.design.size = 30
+
+# Focus search
+infill.opt = "focussearch"
+mbo.focussearch.points = 100
+mbo.focussearch.maxit = 3
+mbo.focussearch.restarts = 3
+
+# The MLR Learner
+classif.lrn = makeLearner("classif.ranger", predict.type = "response")
+
+library(mlrMBO)
+# The final SMOOF objective function
+objFun = makeMultiObjectiveFunction(
+  name = "reg",
+  fn = performan,
+  par.set = ps,
+  has.simple.signature = FALSE,
+  noisy = TRUE,
+  n.objectives = 1,
+  minimize = c(TRUE)
+)
+
+# Build the control object
+method = "parego"
+if (method == "parego") {
+  mbo.prop.points = 10
+  mbo.crit = "cb"
+  parego.crit.cb.pi = 0.5
+}
+
+control = makeMBOControl(n.objectives = 1L, propose.points = mbo.prop.points)
+control = setMBOControlTermination(control, max.evals =  f.evals, iters = 300)
+control = setMBOControlInfill(control, crit = mbo.crit, opt = infill.opt,
+                              opt.focussearch.maxit = mbo.focussearch.maxit,
+                              opt.focussearch.points = mbo.focussearch.points,
+                              opt.restarts = mbo.focussearch.restarts,
+                              crit.cb.pi = parego.crit.cb.pi, crit.cb.lambda = NULL)
+
+mbo.learner = makeLearner("regr.randomForest", predict.type = "se")
+
+design = generateDesign(mbo.init.design.size, smoof::getParamSet(objFun), fun = lhs::maximinLHS)
+
+set.seed(123)
+result = mbo(fun = objFun, design = design, learner = mbo.learner, control = control)
