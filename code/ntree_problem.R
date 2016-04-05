@@ -19,13 +19,6 @@ plot(runs, type="l", ylim = c(min(runs, quant1, quant2), max(runs,quant1, quant2
 lines(1:2000, quant1, col = "red")
 lines(1:2000, quant2, col = "green")
 
-
-
-
-Probably this is related to randomForest vs randomForestSRC discrepancies.
-
-When training this dataset it seems, that concerning the mean missclassification error less trees are better than more in the R-package RandomForestSRC. Is there a specific reason for this? Until now I thought that more trees are always better.
-
 # Installation of OpenML
 install.packages(c("mlr", "checkmate", "data.table", "digest", "RCurl", "stringi", "XML", "RWeka", "devtools"))
 devtools::install_github("openml/r")   
@@ -46,10 +39,6 @@ quant2 = apply(run, 2, function(x) quantile(x, 0.75))
 plot(runs, type="l", ylim = c(min(runs, quant1, quant2), max(runs,quant1, quant2)))
 lines(1:2000, quant1, col = "red")
 lines(1:2000, quant2, col = "green")
-
-enter image description here
-
-I tried to calculate the same thing with randomForest package, but the results were quite different. Here the curve continues to decrease with adding more trees.
 
 library(randomForest)
 run = matrix(NA, 1000, 2000)  
