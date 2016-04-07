@@ -8,7 +8,6 @@ load(paste(dir,"/results/reg.RData", sep = ""))
 setConfig(conf = list(cluster.functions = makeClusterFunctionsMulticore(9)))
 
 tasks = rbind(clas_small, reg_small)
-tasks = tasks
 regis = makeExperimentRegistry(id = "par_randomForest_ntree_grid", packages=c("OpenML", "mlr", "randomForest", "ranger", "randomForestSRC"), 
                                work.dir = paste(dir,"/results", sep = ""), src.dirs = paste(dir,"/functions", sep = ""), seed = 1)
 
@@ -144,7 +143,7 @@ addAlgorithm(regis, id = "forest.ntree.rfsrc", fun = forest.wrapper.ntree.rfsrc,
 
 
 # randomForest
-forest.wrapper.randomForest = function(static, dynamic, ...) {
+forest.wrapper.randomForest1 = function(static, dynamic, ...) {
   if(static[static$task_id == dynamic$idi, 2] == "Supervised Classification") {
     dynamic$data[,dynamic$target] = droplevels(as.factor(dynamic$data[,dynamic$target]))
     time = system.time(pred <- randomForest(formula = dynamic$formula, data = dynamic$data, 
@@ -153,18 +152,19 @@ forest.wrapper.randomForest = function(static, dynamic, ...) {
                                       sampsize = dynamic$sampsize,
                                       maxnodes = dynamic$maxnodes,
                                       replace = dynamic$replace,  
-                                      ... )$predicted)
-    pred2 = pred
+                                      ... ))
+    pred = predict(pred, type = "prob")
+    pred2 = factor(colnames(pred)[max.col(pred)], levels = colnames(pred))
     conf.matrix = getConfMatrix2(dynamic, pred2, relative = TRUE)
     k = nrow(conf.matrix)
     AUC = -1
-    #AUCtry = try(multiclass.auc2(pred, dynamic$data[,dynamic$target]))
-    #if(is.numeric(AUCtry))
-    #  AUC = AUCtry
+    AUCtry = try(multiclass.auc2(pred, dynamic$data[,dynamic$target]))
+    if(is.numeric(AUCtry))
+      AUC = AUCtry
     measures = c(measureACC(dynamic$data[,dynamic$target], pred2), mean(conf.matrix[-k, k]), 
                  measureMMCE(dynamic$data[,dynamic$target], pred2), AUC)
     names(measures) = c("ACC", "BER", "MMCE", "multi.AUC")
-  } else {
+    } else {
     time = system.time(pred <- randomForest(formula = dynamic$formula, data = dynamic$data, 
                                             mtry = dynamic$mtry, 
                                             nodesize = dynamic$min.node.size,
@@ -182,7 +182,7 @@ forest.wrapper.randomForest = function(static, dynamic, ...) {
                        sample.fraction = dynamic$sample.fraction, replace = dynamic$replace, 
                        maxnodes = dynamic$maxnodes, rel.maxnodes = dynamic$rel.maxnodes))
 }
-addAlgorithm(regis, id = "forest.randomForest", fun = forest.wrapper.randomForest, overwrite = TRUE)
+addAlgorithm(regis, id = "forest.randomForest1", fun = forest.wrapper.randomForest1, overwrite = TRUE)
 
 # ranger
 forest.wrapper.ranger = function(static, dynamic, ...) {
@@ -244,7 +244,7 @@ forest.wrapper.randomForestSRC = function(static, dynamic, ...) {
                  measureMMCE(dynamic$data[,dynamic$target], pred2), AUC)
     names(measures) = c("ACC", "BER", "MMCE", "multi.AUC")
   } else {
-    time = system.time(pred <- randomForest(formula = dynamic$formula, data = dynamic$data, 
+    time = system.time(pred <- rfsrc(formula = dynamic$formula, data = dynamic$data, 
                                             bootstrap = dynamic$bootstrap,
                                             mtry = dynamic$mtry, 
                                             nodesize = dynamic$min.node.size,
@@ -375,7 +375,7 @@ for (i in 1:length(ps)){
 pars = list(num.trees = 10000)
 forest.design.ranger = makeDesign("forest.ranger", exhaustive = pars)
 pars = list(ntree = 10000)
-forest.design.randomForest = makeDesign("forest.randomForest", exhaustive = pars)
+forest.design.randomForest1 = makeDesign("forest.randomForest1", exhaustive = pars)
 pars = list(ntree = 10000)
 forest.design.randomForestSRC = makeDesign("forest.randomForestSRC", exhaustive = pars)
 # Send experiments
@@ -384,13 +384,13 @@ for(i in 1:4)
   addExperiments(regis, repls = 1, prob.designs = grid.design[[i]], algo.designs = list(forest.design.ranger)) # 1 replication enough, as rf quite stabilized at 10000 trees (see quantiles for verification)
 
 for(i in 1:6)
-  addExperiments(regis, repls = 1, prob.designs = grid.design[[i]], algo.designs = list(forest.design.randomForest)) # 1 replication enough, as rf quite stabilized at 10000 trees (see quantiles for verification)
+  addExperiments(regis, repls = 1, prob.designs = grid.design[[i]], algo.designs = list(forest.design.randomForest1)) # 1 replication enough, as rf quite stabilized at 10000 trees (see quantiles for verification)
 
 for(i in c(1, 8:16))
   addExperiments(regis, repls = 1, prob.designs = grid.design[[i]], algo.designs = list(forest.design.randomForestSRC)) # 1 replication enough, as rf quite stabilized at 10000 trees (see quantiles for verification)
 
 summarizeExperiments(regis)
-id = findExperiments(regis, algo.pattern = "forest.randomForestSRC")
+id = findExperiments(regis, algo.pattern = "forest.randomForest1")
 testJob(regis, id[100])
 
 # Chunk jobs

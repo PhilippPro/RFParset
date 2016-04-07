@@ -1,6 +1,6 @@
 # Installation of OpenML
 install.packages(c("mlr", "checkmate", "data.table", "digest", "RCurl", "stringi", "XML", "RWeka", "devtools"))
-devtools::install_github("openml/r")   
+devtools::install_github("openml/r")
 library(OpenML)
 saveOMLConfig(apikey = "put_here_your_key_from_openml.org")
 
