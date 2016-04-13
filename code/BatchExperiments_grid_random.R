@@ -1,9 +1,9 @@
-library("BatchExperiments")
+library(BatchExperiments)
 dir = "/home/probst/Random_Forest/RFParset"
 #dir = "/home/philipp/Promotion/RandomForest/RFParset/results"
-setwd(paste(dir,"/results", sep = ""))
-load(paste(dir,"/results/clas.RData", sep = ""))
-load(paste(dir,"/results/reg.RData", sep = ""))
+setwd(paste0(dir,"/results"))
+load(paste0(dir,"/results/clas.RData"))
+load(paste0(dir,"/results/reg.RData"))
 
 setConfig(conf = list(cluster.functions = makeClusterFunctionsMulticore(9)))
 
@@ -11,110 +11,7 @@ tasks = rbind(clas_small, reg_small)
 regis = makeExperimentRegistry(id = "par_randomForest_ntree_grid", packages=c("OpenML", "mlr", "randomForest", "ranger", "randomForestSRC"), 
                                work.dir = paste(dir,"/results", sep = ""), src.dirs = paste(dir,"/functions", sep = ""), seed = 1)
 
-# Add problem
-gettask = function(static, idi, rel.mtry = "sqrt(p)", rel.nodesize = "one" , sample.fraction = 1, 
-                   replace = TRUE, respect.unordered.factors = FALSE, rel.maxnodes = NULL, bootstrap = NULL, 
-                   rel.nodedepth = NULL, splitrule = NULL) {
-  task = getOMLTask(task.id = idi, verbosity=0)$input$data.set
-  
-  # mtry
-  if (rel.mtry == "log(p)"){
-    mtry = floor(log(ncol(task$data) - 1))
-  } else {
-    if (rel.mtry == "sqrt(p)") {
-      mtry = floor(sqrt(ncol(task$data) - 1))
-    } else {
-      if (rel.mtry == "one") {
-        mtry = 1
-      } else {
-        mtry = ceiling(as.numeric(as.character(rel.mtry)) * (ncol(task$data)-1))
-      }
-    }
-  }
-  
-  # min.node.size
-  if (rel.nodesize == "log(n)"){
-    min.node.size = floor(log(nrow(task$data)))
-  } else {
-    if (rel.nodesize == "sqrt(n)") {
-      min.node.size = floor(sqrt(nrow(task$data) - 1))
-    } else {
-      if (rel.nodesize == "one") {
-        min.node.size = 1
-      } else {
-        if (rel.nodesize == "five") {
-          min.node.size = 5
-        } else {
-          min.node.size = ceiling(as.numeric(as.character(rel.nodesize))*nrow(task$data))
-        }
-      }
-    }
-  }
-  
-  # sampsize
-  sample.fraction = as.numeric(as.character(sample.fraction))
-  sampsize = ceiling(sample.fraction * nrow(task$data))
-  
-  # maxnodes
-  if(!is.null(rel.maxnodes)) {
-    maxnodes = ceiling(as.numeric(as.character(rel.maxnodes)) * nrow(task$data))
-  } else {
-    maxnodes = NULL
-  }
-  
-  # bootstrap
-  bootstrap = as.character(bootstrap)
-  
-  # nodedepth
-  if(!is.null(rel.nodedepth)) {
-    nodedepth = ceiling(as.numeric(as.character(rel.nodedepth)) * nrow(task$data))
-  } else {
-    nodedepth = NULL
-  }
-  
-  # splitrule
-  if (!is.null(splitrule)){
-    if (is.numeric(task$target.features)){
-      if (splitrule == "normal"){
-        splitrule = "mse"
-      } else {
-        if (splitrule == "unwt") {
-          splitrule = "mse.unwt"
-        } else {
-          splitrule = "mse.hvwt"
-        }
-      }
-    } else {
-      if (splitrule == "normal"){
-        splitrule = "gini"
-      } else {
-        if (splitrule == "unwt") {
-          splitrule = "gini.unwt"
-        } else {
-          splitrule = "gini.hvwt"
-        }
-      }
-    }
-  }
-  
- list(idi = idi, data = task$data, formula = as.formula(paste(task$target.features,"~.") ), 
-       target = task$target.features,
-       mtry = mtry, 
-       rel.mtry = rel.mtry,
-       min.node.size = min.node.size,
-       rel.nodesize = rel.nodesize,
-       sampsize = sampsize,
-       sample.fraction = sample.fraction,
-       replace = replace, 
-       respect.unordered.factors = respect.unordered.factors,
-       maxnodes = maxnodes,
-       rel.maxnodes = rel.maxnodes, 
-       bootstrap = bootstrap, 
-       nodedepth = nodedepth, 
-       rel.nodedepth = rel.nodedepth,
-       splitrule = splitrule
-      )
-}
+source(paste0(dir, "/functions/gettask.R"))
 addProblem(regis, id = "taski", static = tasks, dynamic = gettask, seed = 123, overwrite = TRUE)
 
 # Add algorithms
