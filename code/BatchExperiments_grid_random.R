@@ -52,18 +52,22 @@ gettask = function(static, idi, rel.mtry = "sqrt(p)", rel.nodesize = "one" , sam
   }
   
   # sampsize
+  sample.fraction = as.numeric(as.character(sample.fraction))
   sampsize = ceiling(sample.fraction * nrow(task$data))
   
   # maxnodes
   if(!is.null(rel.maxnodes)) {
-    maxnodes = ceiling(rel.maxnodes * nrow(task$data))
+    maxnodes = ceiling(as.numeric(as.character(rel.maxnodes)) * nrow(task$data))
   } else {
     maxnodes = NULL
   }
   
+  # bootstrap
+  bootstrap = as.character(bootstrap)
+  
   # nodedepth
   if(!is.null(rel.nodedepth)) {
-    nodedepth = ceiling(rel.nodedepth * nrow(task$data))
+    nodedepth = ceiling(as.numeric(as.character(rel.nodedepth)) * nrow(task$data))
   } else {
     nodedepth = NULL
   }
@@ -93,7 +97,7 @@ gettask = function(static, idi, rel.mtry = "sqrt(p)", rel.nodesize = "one" , sam
     }
   }
   
-  list(idi = idi, data = task$data, formula = as.formula(paste(task$target.features,"~.") ), 
+ list(idi = idi, data = task$data, formula = as.formula(paste(task$target.features,"~.") ), 
        target = task$target.features,
        mtry = mtry, 
        rel.mtry = rel.mtry,
@@ -355,14 +359,13 @@ ps[[16]] = makeParamSet(
   makeDiscreteParam("nodedepth", values = seq(1/40, 1/4, length.out = 10))
 )
 
-
 #ps[[8]] = makeParamSet( 
 #makeLogicalParam("respect.unordered.factors")
 #)
 # -> Runtime can get infeasible large, due to the missing ordering of the values!
 
 grid.design = list()
-for (i in 1:length(ps)){
+for (i in 1:length(ps)) {
   grid.design[[i]] = generateGridDesign(ps[[i]])
   namen = colnames(grid.design[[i]])
   n_exp = nrow(grid.design[[i]])
@@ -378,8 +381,8 @@ pars = list(ntree = 10000)
 forest.design.randomForest1 = makeDesign("forest.randomForest1", exhaustive = pars)
 pars = list(ntree = 10000)
 forest.design.randomForestSRC = makeDesign("forest.randomForestSRC", exhaustive = pars)
-# Send experiments
 
+# Send experiments
 for(i in 1:4)
   addExperiments(regis, repls = 1, prob.designs = grid.design[[i]], algo.designs = list(forest.design.ranger)) # 1 replication enough, as rf quite stabilized at 10000 trees (see quantiles for verification)
 
@@ -390,8 +393,8 @@ for(i in c(1, 8:16))
   addExperiments(regis, repls = 1, prob.designs = grid.design[[i]], algo.designs = list(forest.design.randomForestSRC)) # 1 replication enough, as rf quite stabilized at 10000 trees (see quantiles for verification)
 
 summarizeExperiments(regis)
-id = findExperiments(regis, algo.pattern = "forest.randomForest1")
-testJob(regis, id[100])
+id = findExperiments(regis, algo.pattern = "forest.ranger", prob.pattern = )
+testJob(regis, id[55000])
 
 # Chunk jobs
 chunk1 = list()
@@ -401,7 +404,7 @@ chunk2 = chunk(findExperiments(regis, algo.pattern = "forest.parset"), chunk.siz
 
 chunks = c(chunk1, chunk2)
 
-submitJobs(regis, ids = chunk1)
+submitJobs(regis, chunks)
 
 #waitForJobs(regis)
 

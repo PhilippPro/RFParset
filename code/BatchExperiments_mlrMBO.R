@@ -1,5 +1,4 @@
 library(mlrMBO)
-library(mlr)
 
 # Define the regression task
 data(airquality)
@@ -9,17 +8,17 @@ airquality = airquality[!apply(is.na(airquality),1, function(x) any(x) ),]
 # Define our target function
 # Measures: MSE
 performan = function(x)  {
-  pred <- ranger(formula = Ozone ~ . , data = airquality, sample.fraction = x$sample.fraction, replace = x$replace, 
-                 num.trees = 10000)$predictions
-  measureMSE(airquality$Ozone, pred)
+  pred <- ranger(formula = Ozone ~ . , data = airquality, mtry = x$mtry, min.node.size = x$min.node.size, 
+                 sample.fraction = x$sample.fraction, replace = x$replace, num.trees = 3000)$predictions
+    measureMSE(airquality$Ozone, pred)
 }
 
 # Its ParamSet
 ps = makeParamSet(
   makeLogicalParam("replace"),
-  makeNumericParam("sample.fraction", lower = 0.05, upper = 1),
-  makeDiscreteParam("min.node.size", values = 1:10),
-  makeDiscreteParam("mtry", values = 1:5)
+  makeIntegerParam("min.node.size", lower = 1, upper = 30),
+  makeNumericParam("sample.fraction", lower = 0.2, upper = 1),
+  makeIntegerParam("mtry", lower = 1, upper = 5)
 )
 
 # Budget
@@ -31,9 +30,6 @@ infill.opt = "focussearch"
 mbo.focussearch.points = 100
 mbo.focussearch.maxit = 3
 mbo.focussearch.restarts = 3
-
-# The MLR Learner
-classif.lrn = makeLearner("classif.ranger", predict.type = "response")
 
 library(mlrMBO)
 # The final SMOOF objective function
@@ -50,12 +46,13 @@ objFun = makeMultiObjectiveFunction(
 # Build the control object
 method = "parego"
 if (method == "parego") {
-  mbo.prop.points = 10
+  mbo.prop.points = 1
   mbo.crit = "cb"
   parego.crit.cb.pi = 0.5
 }
 
-control = makeMBOControl(n.objectives = 1L, propose.points = mbo.prop.points)
+control = makeMBOControl(n.objectives = 1L, propose.points = mbo.prop.points, impute.y.fun = function(x, y, opt.path) 1, 
+                         save.on.disk.at = 1:40, save.file.path = "/home/probst/Random_Forest/RFParset/results/optpath.RData")
 control = setMBOControlTermination(control, max.evals =  f.evals, iters = 300)
 control = setMBOControlInfill(control, crit = mbo.crit, opt = infill.opt,
                               opt.focussearch.maxit = mbo.focussearch.maxit,
