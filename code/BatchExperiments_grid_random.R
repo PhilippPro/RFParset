@@ -305,7 +305,7 @@ submitJobs(regis, chunks)
 
 #waitForJobs(regis)
 
-a = findNotDone(regis)
+a = chunk(findNotDone(regis), chunk.size = nrow(tasks))
 submitJobs(regis, a)
 #regis = loadRegistry("/home/probst/Random_Forest/RFParset/results/par_randomForest_ntree_grid-files")
 #showStatus(regis)

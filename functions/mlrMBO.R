@@ -9,12 +9,21 @@ forest.wrapper.mbo = function(static, dynamic, ...) {
   
   # jeweils für alle 4 Maße definieren bzw. für Regression und Klassifikation
 performan = function(x)  {
+  if(static[static$task_id == dynamic$idi, 2] == "Supervised Classification"){
 pred <- ranger(formula = dynamic$formula, data = dynamic$data,
                                     mtry = x$mtry, sample.fraction = x$sample.fraction, 
                                     min.node.size = x$min.node.size,
                                     replace = x$replace, 
-                                    num.threads = 1, num.trees =1000)$predictions
+                                    num.threads = 1, num.trees =5000)$predictions
   measureMMCE(dynamic$data[,dynamic$target], pred)
+  }
+} else {
+  pred <- ranger(formula = dynamic$formula, data = dynamic$data,
+                 mtry = x$mtry, sample.fraction = x$sample.fraction, 
+                 min.node.size = x$min.node.size,
+                 replace = x$replace, 
+                 num.threads = 1, num.trees =5000)$predictions
+  measureMSE(dynamic$data[,dynamic$target], pred)
 }
 
 # Its ParamSet
@@ -54,7 +63,7 @@ if (method == "parego") {
   parego.crit.cb.pi = 0.5
 }
 
-control = makeMBOControl(n.objectives = 1L, propose.points = mbo.prop.points, impute.y.fun = function(x, y, opt.path) mean(data.frame(opt.path)$y))
+control = makeMBOControl(n.objectives = 1L, propose.points = mbo.prop.points, impute.y.fun = function(x, y, opt.path) median(data.frame(opt.path)$y))
 control = setMBOControlTermination(control, max.evals =  f.evals, iters = 300)
 control = setMBOControlInfill(control, crit = mbo.crit, opt = infill.opt,
                               opt.focussearch.maxit = mbo.focussearch.maxit,
