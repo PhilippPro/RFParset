@@ -8,7 +8,7 @@ datasets = listOMLDataSets()
 tasks = listOMLTasks()
 tasktypes = listOMLTaskTypes()
 
-clas = subset(tasks, task_type == "Supervised Classification") # 1860 Class.-Tasks
+clas = subset(tasks, task.type == "Supervised Classification") # 1860 Class.-Tasks
 
 # nur Datensaetze ohne NA-Werte
 clas = clas[!(clas$name %in% clas$name[clas$NumberOfMissingValues != 0]), ]
@@ -77,7 +77,7 @@ clas = clas[!(clas$task_id %in% raus),]
 clas_small = clas[which(clas$NumberOfInstances < 1000 & clas$NumberOfFeatures < 1000 & clas$NumberOfClasses < 30),]
 clas_big = clas[which(!(clas$NumberOfInstances < 1000 & clas$NumberOfFeatures < 1000 & clas$NumberOfClasses < 30)),]
 
-save(clas, clas_small, clas_big, file="/home/probst/Random_Forest/RFParset/results/clas.RData")
+save(clas, clas_small, clas_big, file="/home/probst/Random_Forest/RFSplitbias/results/clas.RData")
 
 
 

@@ -1,6 +1,6 @@
 library(BatchExperiments)
 dir = "/home/probst/Random_Forest/RFParset"
-#dir = "/home/philipp/Promotion/RandomForest/RFParset/results"
+#dir = "/home/philipp/Promotion/RandomForest/RFParset"
 setwd(paste0(dir,"/results"))
 load(paste0(dir,"/results/clas.RData"))
 load(paste0(dir,"/results/reg.RData"))
