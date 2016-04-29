@@ -5,7 +5,7 @@ setwd(paste0(dir,"/results"))
 load(paste0(dir,"/results/clas.RData"))
 load(paste0(dir,"/results/reg.RData"))
 
-setConfig(conf = list(cluster.functions = makeClusterFunctionsMulticore(9)))
+setConfig(conf = list(cluster.functions = makeClusterFunctionsMulticore(10)))
 
 tasks = rbind(clas_small, reg_small)
 regis = makeExperimentRegistry(id = "par_randomForest_ntree_grid", packages=c("OpenML", "mlr", "randomForest", "ranger", "randomForestSRC"), 
@@ -63,8 +63,8 @@ forest.wrapper.randomForest1 = function(static, dynamic, ...) {
     if(is.numeric(AUCtry))
       AUC = AUCtry
     measures = c(measureACC(dynamic$data[,dynamic$target], pred2), mean(conf.matrix[-k, k]), 
-                 measureMMCE(dynamic$data[,dynamic$target], pred2), AUC)
-    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC")
+                 measureMMCE(dynamic$data[,dynamic$target], pred2), AUC, measureMulticlassBrier(pred, dynamic$data[,dynamic$target]))
+    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC", "multiclass.brier")
     } else {
     time = system.time(pred <- randomForest(formula = dynamic$formula, data = dynamic$data, 
                                             mtry = dynamic$mtry, 
@@ -103,8 +103,8 @@ forest.wrapper.ranger = function(static, dynamic, ...) {
     if(is.numeric(AUCtry))
       AUC = AUCtry
     measures = c(measureACC(dynamic$data[,dynamic$target], pred2), mean(conf.matrix[-k, k]), 
-                 measureMMCE(dynamic$data[,dynamic$target], pred2), AUC)
-    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC")
+                 measureMMCE(dynamic$data[,dynamic$target], pred2), AUC, measureMulticlassBrier(pred, dynamic$data[,dynamic$target])) 
+    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC", "multiclass.brier")
   } else {
     time = system.time(pred <- ranger(formula = dynamic$formula, data = dynamic$data, 
                                       mtry = dynamic$mtry, sample.fraction = dynamic$sample.fraction, 
@@ -142,8 +142,8 @@ forest.wrapper.randomForestSRC = function(static, dynamic, ...) {
     if(is.numeric(AUCtry))
       AUC = AUCtry
     measures = c(measureACC(dynamic$data[,dynamic$target], pred2), mean(conf.matrix[-k, k]), 
-                 measureMMCE(dynamic$data[,dynamic$target], pred2), AUC)
-    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC")
+                 measureMMCE(dynamic$data[,dynamic$target], pred2), AUC, measureMulticlassBrier(pred, dynamic$data[,dynamic$target]))
+    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC", "multiclass.brier")
   } else {
     time = system.time(pred <- rfsrc(formula = dynamic$formula, data = dynamic$data, 
                                             bootstrap = dynamic$bootstrap,
@@ -310,9 +310,6 @@ submitJobs(regis, a)
 #regis = loadRegistry("/home/probst/Random_Forest/RFParset/results/par_randomForest_ntree_grid-files")
 #showStatus(regis)
 
-rest = chunk(findNotDone(regis), chunk.size = nrow(tasks))
-rest = chunk(findErrors(regis), chunk.size = nrow(tasks))
-submitJobs(regis, ids = rest)
 
 
 

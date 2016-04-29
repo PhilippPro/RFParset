@@ -1,6 +1,6 @@
 # Add problem
 gettask = function(static, idi, rel.mtry = "sqrt(p)", rel.nodesize = "one" , sample.fraction = 1, 
-                   replace = TRUE, respect.unordered.factors = FALSE, rel.maxnodes = NULL, bootstrap = NULL, 
+                   replace = FALSE, respect.unordered.factors = FALSE, rel.maxnodes = NULL, bootstrap = NULL, 
                    rel.nodedepth = NULL, splitrule = NULL) {
   task = getOMLTask(task.id = idi, verbosity=0)$input$data.set
   n = nrow(task$data)

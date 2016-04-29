@@ -16,7 +16,6 @@ forest.wrapper.mbo = function(static, dynamic, ...) {
                      replace = x$replace,
                      num.threads = 1, num.trees =5000)$predictions
       measureMMCE(dynamic$data[,dynamic$target], pred)
-    }
   } else {
     pred <- ranger(formula = dynamic$formula, data = dynamic$data,
                    mtry = x$mtry, sample.fraction = x$sample.fraction,
@@ -25,7 +24,7 @@ forest.wrapper.mbo = function(static, dynamic, ...) {
                    num.threads = 1, num.trees =5000)$predictions
     measureMSE(dynamic$data[,dynamic$target], pred)
   }
-  
+  }
   # Its ParamSet
   ps = makeParamSet(
     makeLogicalParam("replace"),

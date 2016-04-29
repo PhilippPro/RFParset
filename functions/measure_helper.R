@@ -11,16 +11,18 @@ getConfMatrix2 = function(dynamic, pred, relative = TRUE) {
   if (relative) {
     total = sum(result[1:k, 1:k])
     k1 = k + 1
-    result[k1, 1:k] = if (result[k1, k1] != 0)
-      result[k1, 1:k] / result[k1, k1]
-    else
-      0
+    if (result[k1, k1] != 0) {
+      result[k1, 1:k] = result[k1, 1:k] / result[k1, k1] 
+    } else {
+      result[k1, 1:k] = 0 
+      }
     rownorm = function(r, len) {
-      if (any(r[1:len] > 0))
+      if (any(r[1:len] > 0)) {
         r / sum(r[1:len])
-      else
+      } else {
         rep(0, len + 1)
-    }
+      }
+      }
     result[1:k, ] = t(apply(result[1:k, ], 1, rownorm, len = k))
     result[k1, k1] = result[k1, k1] / total
   }
