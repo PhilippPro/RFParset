@@ -63,8 +63,9 @@ forest.wrapper.randomForest1 = function(static, dynamic, ...) {
     if(is.numeric(AUCtry))
       AUC = AUCtry
     measures = c(measureACC(dynamic$data[,dynamic$target], pred2), mean(conf.matrix[-k, k]), 
-                 measureMMCE(dynamic$data[,dynamic$target], pred2), AUC, measureMulticlassBrier(pred, dynamic$data[,dynamic$target]))
-    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC", "multiclass.brier")
+                 measureMMCE(dynamic$data[,dynamic$target], pred2), AUC, 
+                 measureMulticlassBrier(pred, dynamic$data[,dynamic$target]), measureLogloss(pred, dynamic$data[,dynamic$target]))
+    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC", "multi.BRIER", "LOGLOSS")
     } else {
     time = system.time(pred <- randomForest(formula = dynamic$formula, data = dynamic$data, 
                                             mtry = dynamic$mtry, 
@@ -103,8 +104,9 @@ forest.wrapper.ranger = function(static, dynamic, ...) {
     if(is.numeric(AUCtry))
       AUC = AUCtry
     measures = c(measureACC(dynamic$data[,dynamic$target], pred2), mean(conf.matrix[-k, k]), 
-                 measureMMCE(dynamic$data[,dynamic$target], pred2), AUC, measureMulticlassBrier(pred, dynamic$data[,dynamic$target])) 
-    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC", "multiclass.brier")
+                 measureMMCE(dynamic$data[,dynamic$target], pred2), AUC, 
+                 measureMulticlassBrier(pred, dynamic$data[,dynamic$target]), measureLogloss(pred, dynamic$data[,dynamic$target]))
+    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC", "multi.BRIER", "LOGLOSS")
   } else {
     time = system.time(pred <- ranger(formula = dynamic$formula, data = dynamic$data, 
                                       mtry = dynamic$mtry, sample.fraction = dynamic$sample.fraction, 
@@ -142,8 +144,9 @@ forest.wrapper.randomForestSRC = function(static, dynamic, ...) {
     if(is.numeric(AUCtry))
       AUC = AUCtry
     measures = c(measureACC(dynamic$data[,dynamic$target], pred2), mean(conf.matrix[-k, k]), 
-                 measureMMCE(dynamic$data[,dynamic$target], pred2), AUC, measureMulticlassBrier(pred, dynamic$data[,dynamic$target]))
-    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC", "multiclass.brier")
+                 measureMMCE(dynamic$data[,dynamic$target], pred2), AUC, 
+                 measureMulticlassBrier(pred, dynamic$data[,dynamic$target]), measureLogloss(pred, dynamic$data[,dynamic$target]))
+    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC", , "multi.BRIER", "LOGLOSS")
   } else {
     time = system.time(pred <- rfsrc(formula = dynamic$formula, data = dynamic$data, 
                                             bootstrap = dynamic$bootstrap,
@@ -256,10 +259,28 @@ ps[[16]] = makeParamSet(
   makeDiscreteParam("nodedepth", values = seq(1/40, 1/4, length.out = 10))
 )
 
+# Maximin Design
+
+ps_maximin = list()
+
+ps_maximin[[1]] = makeParamSet(
+  makeNumericParam("rel.mtry", lower = 0, upper = 1),
+  makeNumericParam("rel.nodesize", lower = 0, upper = 1/4),
+  makeNumericParam("sample.fraction", lower = 0, upper = 1/4),
+  makeNumericParam("replace", lower = 0, upper = 1)
+)
+
+maximin.design = maximinLHS(4 ,100,1)
+maximin.design[2:3, ] = maximin.design[2:3, ] * 1/4
+apply(maximin.design, 1, range)
+  plot(maximin.design[1,], maximin.design[2,])
+
 #ps[[8]] = makeParamSet( 
 #makeLogicalParam("respect.unordered.factors")
 #)
 # -> Runtime can get infeasible large, due to the missing ordering of the values!
+
+
 
 grid.design = list()
 for (i in 1:length(ps)) {
@@ -290,16 +311,16 @@ for(i in c(1, 8:16))
   addExperiments(regis, repls = 1, prob.designs = grid.design[[i]], algo.designs = list(forest.design.randomForestSRC)) # 1 replication enough, as rf quite stabilized at 10000 trees (see quantiles for verification)
 
 summarizeExperiments(regis)
-id = findExperiments(regis, algo.pattern = "forest.ranger", prob.pattern = )
+id = findExperiments(regis, algo.pattern = "forest.ranger")
 testJob(regis, id[55000])
 
 # Chunk jobs
-chunk1 = list()
-for(i in 1:100)
-  chunk1[[i]] = c(findExperiments(regis, algo.pattern = "forest.ntree", repls=i))
-chunk2 = chunk(findExperiments(regis, algo.pattern = "forest.parset"), chunk.size = nrow(tasks))
+#chunk1 = list()
+#for(i in 1:100)
+#  chunk1[[i]] = c(findExperiments(regis, algo.pattern = "forest.ntree", repls=i))
+#chunk2 = chunk(findExperiments(regis, algo.pattern = "forest.parset"), chunk.size = nrow(tasks))
 
-chunks = c(chunk1, chunk2)
+chunks = chunk(findExperiments(regis), chunk.size = nrow(tasks))
 
 submitJobs(regis, chunks)
 

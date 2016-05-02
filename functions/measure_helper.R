@@ -1,3 +1,16 @@
+measureMulticlassBrier = function(probabilities, truth) {
+  mean(rowSums((probabilities - model.matrix( ~ . -1, data = as.data.frame(truth)))^2))
+}
+
+measureLogloss = function(probabilities, truth){
+   eps = 1e-15;
+   #let's confine the predicted probabilities to [eps,1-eps], so logLoss doesn't reach infinity under any circumstance
+   probabilities[probabilities>1-eps]=1-eps
+   probabilities[probabilities<eps]=eps
+   truth.model = model.matrix(~.-1, data = as.data.frame(truth))
+   -1*mean(log(probabilities[(truth.model-probabilities)>0]))
+}
+
 getConfMatrix2 = function(dynamic, pred, relative = TRUE) {
   cls = levels(dynamic$data[,dynamic$target])
   k = length(cls)
@@ -29,12 +42,48 @@ getConfMatrix2 = function(dynamic, pred, relative = TRUE) {
   return(result)
 }
 
-multiclass.auc2 = function(pred, resp){
+train.set = seq(1, 150, 2)
+test.set = seq(2, 150, 2)
+lrn = makeLearner("classif.randomForest", predict.type = "prob")
+task = makeClassifTask(id = "pid", data = getTaskData(pid.task)[train.set,], target = "diabetes")
+model = train(lrn, task)
+pred = predict(model, newdata = getTaskData(pid.task)[test.set,])
+performance(pred, measures = list(auc))
+pred$data$truth == pred$data$response
+prob = getPredictionProbabilities(pred)
+truth = pred$data$truth
+resp = pred$data$response
+
+multiclass.auc2 = function(pred, truth){
+  if(nlevels(truth) == 2) {pred = cbind(pred,1-pred)}
   predP = pred
-  # choose the probablity of the choosen response
+  # choose the probablity of the truth
   predV = vnapply(seq_row(pred), function(i) {
-    pred[i, resp[i]]
+    pred[i, truth[i]]
   })
-  auc = pROC::multiclass.roc(response = resp, predictor = predV)$auc
+  auc = pROC::multiclass.roc(response = truth, predictor = predV)$auc
   as.numeric(auc)
 }
+
+multiclass.auc2(prob, truth)
+measureAUC(prob, truth, positive = "neg", negative = "pos")
+
+
+multiclass.auc = makeMeasure(id = "multiclass.auc", minimize = FALSE, best = 1, worst = 0,
+                             properties = c("classif", "classif.multi", "req.pred", "req.truth", "req.prob"),
+                             name = "Multiclass area under the curve",
+                             note = "Calls `pROC::multiclass.roc`.",
+                             fun = function(task, model, pred, feats, extra.args) {
+                               requirePackages("pROC", why = "multiclass.auc", default.method = "load")
+                               truth = pred$data$truth
+                               predP = getPredictionProbabilities(pred)
+                               # choose the probablity of the true response
+                               predV = vnapply(seq_row(predP), function(i) {
+                                 predP[i, truth[i]]
+                               })
+                               auc = pROC::multiclass.roc(response = truth, predictor = predV)$auc
+                               as.numeric(auc)
+                             }
+)
+
+
