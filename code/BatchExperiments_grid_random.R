@@ -8,7 +8,7 @@ load(paste0(dir,"/results/reg.RData"))
 setConfig(conf = list(cluster.functions = makeClusterFunctionsMulticore(10)))
 
 tasks = rbind(clas_small, reg_small)
-regis = makeExperimentRegistry(id = "par_randomForest_ntree_grid", packages=c("OpenML", "mlr", "randomForest", "ranger", "randomForestSRC"), 
+regis = makeExperimentRegistry(id = "par_randomForest_ntree_grid", packages=c("OpenML", "mlr", "randomForest", "ranger", "randomForestSRC", "caTools"), 
                                work.dir = paste(dir,"/results", sep = ""), src.dirs = paste(dir,"/functions", sep = ""), seed = 1)
 
 source(paste0(dir, "/functions/gettask.R"))
@@ -59,7 +59,7 @@ forest.wrapper.randomForest1 = function(static, dynamic, ...) {
     conf.matrix = getConfMatrix2(dynamic, pred2, relative = TRUE)
     k = nrow(conf.matrix)
     AUC = -1
-    AUCtry = try(multiclass.auc2(pred, dynamic$data[,dynamic$target]))
+    AUCtry = try(multiclass.au1u(pred, dynamic$data[,dynamic$target]))
     if(is.numeric(AUCtry))
       AUC = AUCtry
     measures = c(measureACC(dynamic$data[,dynamic$target], pred2), mean(conf.matrix[-k, k]), 
@@ -100,7 +100,7 @@ forest.wrapper.ranger = function(static, dynamic, ...) {
     conf.matrix = getConfMatrix2(dynamic, pred2, relative = TRUE)
     k = nrow(conf.matrix)
     AUC = -1
-    AUCtry = try(multiclass.auc2(pred, dynamic$data[,dynamic$target]))
+    AUCtry = try(multiclass.au1u(pred, dynamic$data[,dynamic$target]))
     if(is.numeric(AUCtry))
       AUC = AUCtry
     measures = c(measureACC(dynamic$data[,dynamic$target], pred2), mean(conf.matrix[-k, k]), 
@@ -140,7 +140,7 @@ forest.wrapper.randomForestSRC = function(static, dynamic, ...) {
     conf.matrix = getConfMatrix2(dynamic, pred2, relative = TRUE)
     k = nrow(conf.matrix)
     AUC = -1
-    AUCtry = try(multiclass.auc2(pred, dynamic$data[,dynamic$target]))
+    AUCtry = try(multiclass.au1u(pred, dynamic$data[,dynamic$target]))
     if(is.numeric(AUCtry))
       AUC = AUCtry
     measures = c(measureACC(dynamic$data[,dynamic$target], pred2), mean(conf.matrix[-k, k]), 

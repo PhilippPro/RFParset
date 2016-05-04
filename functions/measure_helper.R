@@ -42,48 +42,12 @@ getConfMatrix2 = function(dynamic, pred, relative = TRUE) {
   return(result)
 }
 
-train.set = seq(1, 150, 2)
-test.set = seq(2, 150, 2)
-lrn = makeLearner("classif.randomForest", predict.type = "prob")
-task = makeClassifTask(id = "pid", data = getTaskData(pid.task)[train.set,], target = "diabetes")
-model = train(lrn, task)
-pred = predict(model, newdata = getTaskData(pid.task)[test.set,])
-performance(pred, measures = list(auc))
-pred$data$truth == pred$data$response
-prob = getPredictionProbabilities(pred)
-truth = pred$data$truth
-resp = pred$data$response
-
-multiclass.auc2 = function(pred, truth){
-  if(nlevels(truth) == 2) {pred = cbind(pred,1-pred)}
-  predP = pred
-  # choose the probablity of the truth
-  predV = vnapply(seq_row(pred), function(i) {
-    pred[i, truth[i]]
-  })
-  auc = pROC::multiclass.roc(response = truth, predictor = predV)$auc
-  as.numeric(auc)
+multiclass.au1u = function(probabilities, truth) {
+  m = colAUC(probabilities, truth)
+  if (all(dim(m) == c(1,1))) {
+    c(max(m, 1-m))
+  } else {
+    c = c(combn(1:nlevels(truth), 2))
+    mean(m[cbind(rep(1:nrow(m), each = 2), c)])
+  }
 }
-
-multiclass.auc2(prob, truth)
-measureAUC(prob, truth, positive = "neg", negative = "pos")
-
-
-multiclass.auc = makeMeasure(id = "multiclass.auc", minimize = FALSE, best = 1, worst = 0,
-                             properties = c("classif", "classif.multi", "req.pred", "req.truth", "req.prob"),
-                             name = "Multiclass area under the curve",
-                             note = "Calls `pROC::multiclass.roc`.",
-                             fun = function(task, model, pred, feats, extra.args) {
-                               requirePackages("pROC", why = "multiclass.auc", default.method = "load")
-                               truth = pred$data$truth
-                               predP = getPredictionProbabilities(pred)
-                               # choose the probablity of the true response
-                               predV = vnapply(seq_row(predP), function(i) {
-                                 predP[i, truth[i]]
-                               })
-                               auc = pROC::multiclass.roc(response = truth, predictor = predV)$auc
-                               as.numeric(auc)
-                             }
-)
-
-

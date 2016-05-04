@@ -1,5 +1,5 @@
 # Add problem
-gettask = function(static, idi, rel.mtry = "sqrt(p)", rel.nodesize = "one" , sample.fraction = 1, 
+gettask = function(static, idi, rel.mtry = "sqrt(p)", rel.nodesize = "one" , sample.fraction = 0.632, 
                    replace = FALSE, respect.unordered.factors = FALSE, rel.maxnodes = NULL, bootstrap = NULL, 
                    rel.nodedepth = NULL, splitrule = NULL) {
   task = getOMLTask(task.id = idi, verbosity=0)$input$data.set
@@ -42,7 +42,7 @@ gettask = function(static, idi, rel.mtry = "sqrt(p)", rel.nodesize = "one" , sam
   
   # sampsize
   sample.fraction = as.numeric(as.character(sample.fraction))
-  sampsize = ceiling(sample.fraction * n)
+  sampsize = max(floor(sample.fraction * n), 1)
   
   # maxnodes
   if(!is.null(rel.maxnodes)) {
@@ -52,8 +52,11 @@ gettask = function(static, idi, rel.mtry = "sqrt(p)", rel.nodesize = "one" , sam
   }
   
   # bootstrap
-  bootstrap = as.character(bootstrap)
-  
+  if(is.null(bootstrap)) {
+    bootstrap = "by.root"
+  } else {
+    bootstrap = as.character(bootstrap)
+  }
   # nodedepth
   if(!is.null(rel.nodedepth)) {
     nodedepth = ceiling(as.numeric(as.character(rel.nodedepth)) * n)
