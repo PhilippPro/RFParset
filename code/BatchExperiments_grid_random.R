@@ -261,19 +261,19 @@ ps[[16]] = makeParamSet(
 
 # Maximin Design
 
-ps_maximin = list()
+#ps_maximin = list()
 
-ps_maximin[[1]] = makeParamSet(
-  makeNumericParam("rel.mtry", lower = 0, upper = 1),
-  makeNumericParam("rel.nodesize", lower = 0, upper = 1/4),
-  makeNumericParam("sample.fraction", lower = 0, upper = 1/4),
-  makeNumericParam("replace", lower = 0, upper = 1)
-)
+#ps_maximin[[1]] = makeParamSet(
+#  makeNumericParam("rel.mtry", lower = 0, upper = 1),
+#  makeNumericParam("rel.nodesize", lower = 0, upper = 1/4),
+#  makeNumericParam("sample.fraction", lower = 0, upper = 1/4),
+#  makeNumericParam("replace", lower = 0, upper = 1)
+#)
 
-maximin.design = maximinLHS(4 ,100,1)
-maximin.design[2:3, ] = maximin.design[2:3, ] * 1/4
-apply(maximin.design, 1, range)
-  plot(maximin.design[1,], maximin.design[2,])
+#maximin.design = maximinLHS(4 ,100,1)
+#maximin.design[2:3, ] = maximin.design[2:3, ] * 1/4
+#apply(maximin.design, 1, range)
+#  plot(maximin.design[1,], maximin.design[2,])
 
 #ps[[8]] = makeParamSet( 
 #makeLogicalParam("respect.unordered.factors")
