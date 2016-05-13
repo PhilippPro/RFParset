@@ -146,7 +146,7 @@ forest.wrapper.randomForestSRC = function(static, dynamic, ...) {
     measures = c(measureACC(dynamic$data[,dynamic$target], pred2), mean(conf.matrix[-k, k]), 
                  measureMMCE(dynamic$data[,dynamic$target], pred2), AUC, 
                  measureMulticlassBrier(pred, dynamic$data[,dynamic$target]), measureLogloss(pred, dynamic$data[,dynamic$target]))
-    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC", , "multi.BRIER", "LOGLOSS")
+    names(measures) = c("ACC", "BER", "MMCE", "multi.AUC", "multi.BRIER", "LOGLOSS")
   } else {
     time = system.time(pred <- rfsrc(formula = dynamic$formula, data = dynamic$data, 
                                             bootstrap = dynamic$bootstrap,
@@ -313,7 +313,7 @@ for(i in c(1, 8:16))
 summarizeExperiments(regis)
 id = findExperiments(regis, algo.pattern = "forest.ranger")
 testJob(regis, id[55000])
-
+testJob(regis, 357825)
 # Chunk jobs
 #chunk1 = list()
 #for(i in 1:100)
@@ -326,7 +326,10 @@ submitJobs(regis, chunks)
 
 #waitForJobs(regis)
 
-a = chunk(findNotDone(regis), chunk.size = nrow(tasks))
+a = chunk(findNotStarted(regis), chunk.size = nrow(tasks))
+a = sample(a)
+a = chunk(findErrors(regis), chunk.size = nrow(tasks))
+a = sample(a)
 submitJobs(regis, a)
 #regis = loadRegistry("/home/probst/Random_Forest/RFParset/results/par_randomForest_ntree_grid-files")
 #showStatus(regis)

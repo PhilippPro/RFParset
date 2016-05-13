@@ -108,10 +108,10 @@ gettask = function(static, idi, rel.mtry = "sqrt(p)", rel.nodesize = "one" , sam
   )
 }
 
-gettaskMBO = function(static, idi, rel.mtry = "sqrt(p)", rel.nodesize = "one" , sample.fraction = 1, 
+gettaskMBO = function(static, idi, learner, rel.mtry = "sqrt(p)", rel.nodesize = "one" , sample.fraction = 1, 
                    replace = TRUE, respect.unordered.factors = FALSE, rel.maxnodes = NULL, bootstrap = NULL, 
                    rel.nodedepth = NULL, splitrule = NULL) {
   task = getOMLTask(task.id = idi, verbosity=0)$input$data.set
   list(idi = idi, data = task$data, formula = as.formula(paste(task$target.features,"~.") ), 
-       target = task$target.features, n = n, p = p)
+       target = task$target.features, learner = learner)
 }

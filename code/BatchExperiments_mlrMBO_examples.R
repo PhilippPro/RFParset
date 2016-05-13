@@ -8,22 +8,23 @@ airquality = airquality[!apply(is.na(airquality),1, function(x) any(x) ),]
 # Define our target function
 # Measures: MSE
 performan = function(x)  {
+  replace = as.logical(round(x$replace))
   pred <- ranger(formula = Ozone ~ . , data = airquality, mtry = x$mtry, min.node.size = x$min.node.size, 
-                 sample.fraction = x$sample.fraction, replace = x$replace, num.trees = 3000)$predictions
+                 sample.fraction = x$sample.fraction, replace = replace, num.trees = 3000)$predictions
   measureMSE(airquality$Ozone, pred)
 }
 
 # Its ParamSet
 ps = makeParamSet(
-  makeLogicalParam("replace"),
+  makeNumericParam("replace", lower = 0, upper = 1),
   makeIntegerParam("min.node.size", lower = 1, upper = 30),
   makeNumericParam("sample.fraction", lower = 0.2, upper = 1),
   makeIntegerParam("mtry", lower = 1, upper = 5)
 )
 
 # Budget
-f.evals = 40
-mbo.init.design.size = 30
+f.evals = 100
+mbo.init.design.size = 20
 
 # Focus search
 infill.opt = "focussearch"
@@ -61,6 +62,7 @@ control = setMBOControlInfill(control, crit = mbo.crit, opt = infill.opt,
                               crit.cb.pi = parego.crit.cb.pi, crit.cb.lambda = NULL)
 
 mbo.learner = makeLearner("regr.randomForest", predict.type = "se")
+mbo.learner = makeLearner("regr.km", predict.type = "se", covtype = "matern3_2")
 
 design = generateDesign(mbo.init.design.size, smoof::getParamSet(objFun), fun = lhs::maximinLHS)
 
