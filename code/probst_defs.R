@@ -1,5 +1,8 @@
+load(paste0(dir,"/results/clas.RData"))
+load(paste0(dir,"/results/reg.RData"))
+tasks = rbind(clas_small, reg_small)
 
-OMLDATASETS = c(1, 2, 5)
+OMLDATASETS = tasks$did[1:3]
 
 MEASURES = list(mmce, timetrain)
 

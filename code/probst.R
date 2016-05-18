@@ -1,7 +1,10 @@
 library(mlr)
 library(batchtools)
 library(plyr)
-source("probst_defs.R")
+
+dir = "/home/probst/Random_Forest/RFParset"
+setwd(paste0(dir,"/results"))
+source(paste0(dir,"/code/probst_defs.R"))
 
 unlink("probs-muell", recursive = TRUE)
 reg = makeExperimentRegistry("probs-muell",
@@ -19,11 +22,12 @@ addAlgorithm("eval", fun = function(job, data, instance, lrn.id, ...) {
   par.vals = list(...)             
   oml.dset = getOMLDataSet(data$did)             
   task = convertOMLDataSetToMlr(oml.dset)
-  lrn = makeLearner(lrn.id)
+  lrn = makeLearner(lrn.id, predict.type = "prob")
   par.vals = CONVERTPARVAL(par.vals, task)
   lrn = setHyperPars(lrn, par.vals = par.vals)
-  # FIXME: use getOOBPreds
-  r = holdout(lrn, task, measures = MEASURES, keep.pred = FALSE. models = FALSE)              
+  mod = train(lrn, task)
+  oob = getOutOfBag(mod, task)
+  performance(oob, measures = MEASURES, model = mod)
 })
 
 
@@ -40,6 +44,7 @@ for (lid in LEARNERIDS) {
 addExperiments(algo.designs = list(eval = ades))
 
 submitJobs()
-
-res = reduceResultsDataTable(fun = function(r) as.data.frame(as.list(r$aggr)))
-
+getStatus()
+getErrorMessages()
+res = reduceResultsDataTable(fun = function(r) as.data.frame(as.list(r)), reg = reg)
+res
