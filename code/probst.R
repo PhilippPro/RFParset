@@ -24,7 +24,7 @@ addAlgorithm("eval", fun = function(job, data, instance, lrn.id, ...) {
   oml.dset = getOMLDataSet(data$did)             
   task = convertOMLDataSetToMlr(oml.dset)
   lrn = makeLearner(lrn.id, predict.type = "prob")
-  par.vals = CONVERTPARVAL(par.vals, task)
+  par.vals = CONVERTPARVAL(par.vals, task, lrn.id)
   lrn = setHyperPars(lrn, par.vals = par.vals)
   mod = train(lrn, task)
   oob = getOutOfBag(mod, task)
@@ -45,7 +45,7 @@ for (lid in LEARNERIDS) {
 
 addExperiments(algo.designs = list(eval = ades))
 
-for(i in 1:48) {
+for(i in 1:54) {
   print(i)
   submitJobs(i)
 }
@@ -56,6 +56,6 @@ res = reduceResultsDataTable(fun = function(r) as.data.frame(as.list(r)), reg = 
 res
 
 # zu Debugzwecken
-#lrn.id = "classif.randomForest"
-#par.vals = as.list(ades[1,-1])
+#lrn.id = "classif.ranger"
+#par.vals = as.list(ades[11,-1])
 #data$did = 457
