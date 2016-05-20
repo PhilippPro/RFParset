@@ -19,16 +19,19 @@ for (did in OMLDATASETS) {
 
 # add one generic 'algo' that evals the RF in hyperpar space
 addAlgorithm("eval", fun = function(job, data, instance, lrn.id, ...) {
-  par.vals = list(...)             
-  par.vals = par.vals[!is.na(par.vals)]
+  par.vals = list(...)
   oml.dset = getOMLDataSet(data$did)             
   task = convertOMLDataSetToMlr(oml.dset)
-  lrn = makeLearner(lrn.id, predict.type = "prob")
+  type = getTaskType(task)
+  par.vals = par.vals[!is.na(par.vals)]
   par.vals = CONVERTPARVAL(par.vals, task, lrn.id)
+  lrn.id = paste0(type, ".", lrn.id)
+  lrn = switch(type, "classif" = makeLearner(lrn.id, predict.type = "prob"), "regr" = makeLearner(lrn.id))
   lrn = setHyperPars(lrn, par.vals = par.vals)
+  measures = MEASURES(type)
   mod = train(lrn, task)
   oob = getOutOfBag(mod, task)
-  performance(oob, measures = MEASURES, model = mod)
+  performance(oob, measures = measures, model = mod)
 })
 
 
@@ -45,17 +48,19 @@ for (lid in LEARNERIDS) {
 
 addExperiments(algo.designs = list(eval = ades))
 
-for(i in 1:54) {
+for(i in 1:72) {
   print(i)
   submitJobs(i)
 }
 submitJobs()
 getStatus()
 getErrorMessages()
-res = reduceResultsDataTable(fun = function(r) as.data.frame(as.list(r)), reg = reg)
+res = reduceResultsDataTable(ids = 1:54, fun = function(r) as.data.frame(as.list(r)), reg = reg)
+res
+res = reduceResultsDataTable(ids = 55:72, fun = function(r) as.data.frame(as.list(r)), reg = reg)
 res
 
 # zu Debugzwecken
-#lrn.id = "classif.ranger"
-#par.vals = as.list(ades[11,-1])
-#data$did = 457
+#lrn.id = "randomForest"
+#par.vals = as.list(ades[1,-1])
+#data$did = 441
