@@ -10,20 +10,13 @@ MEASURES = function(x) switch(x, "classif" = list(acc, ber, mmce, multiclass.au1
 LEARNERIDS = c("randomForest", "ranger", "randomForestSRC")
 
 DESSIZE = function(ps) {
-   20 * 24 * 4 # sum(getParamLengths(ps))
+   20 * 24 * 4 # sum(getParamLengths(ps)) # approx. 2 days
   # 20 * 10 * 1
   # 2 minutes per sample approximately
 }
 
 makeMyParamSet = function(lrn.id, task = NULL) {
   switch(lrn.id,
-         ranger = makeParamSet(
-           makeIntegerParam("num.trees", lower = 50, upper = 10000),
-           makeLogicalParam("replace"),
-           makeNumericParam("sample.fraction", lower = 0, upper = 1),
-           makeNumericParam("mtry", lower = 0, upper = 1),
-           makeNumericParam("min.node.size", lower = 0, upper = 0.5)
-         ),
          randomForest = makeParamSet(
            makeIntegerParam("ntree", lower = 50, upper = 10000),
            makeLogicalParam("replace"),
@@ -31,6 +24,13 @@ makeMyParamSet = function(lrn.id, task = NULL) {
            makeNumericParam("mtry", lower = 0, upper = 1),
            makeNumericParam("nodesize", lower = 0, upper = 0.5),
            makeNumericParam("maxnodes", lower = 0, upper = 1)
+         ),
+         ranger = makeParamSet(
+           makeIntegerParam("num.trees", lower = 50, upper = 10000),
+           makeLogicalParam("replace"),
+           makeNumericParam("sample.fraction", lower = 0, upper = 1),
+           makeNumericParam("mtry", lower = 0, upper = 1),
+           makeNumericParam("min.node.size", lower = 0, upper = 0.5)
          ),
          randomForestSRC = makeParamSet(
            makeIntegerParam("ntree", lower = 50, upper = 10000),

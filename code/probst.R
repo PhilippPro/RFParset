@@ -63,7 +63,7 @@ for (lid in "ranger") {
 
 summarizeExperiments()
 ids = getJobTable()$job.id
-ids = chunkIds(findNotDone(ids), chunk.size = 100)
+ids = chunkIds(findNotDone(), chunk.size = 1000)
 
 submitJobs(ids)
 submitJobs(ids, resources = list(chunk.ncpus = 9))
