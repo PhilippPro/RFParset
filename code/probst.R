@@ -62,17 +62,12 @@ for (lid in "ranger") {
 }
 
 summarizeExperiments()
-ids = getJobTable()$job.id
 ids = chunkIds(findNotDone(), chunk.size = 1000)
 
 submitJobs(ids)
-submitJobs(ids, resources = list(chunk.ncpus = 9))
+#submitJobs(ids, resources = list(chunk.ncpus = 9))
 getStatus()
 getErrorMessages()
-res = reduceResultsDataTable(ids = 1:10, fun = function(r) as.data.frame(as.list(r)), reg = regis)
-res
-res = reduceResultsDataTable(ids = 1141:1806, fun = function(r) as.data.frame(as.list(r)), reg = regis)
-res
 
 # zu Debugzwecken
 #lrn.id = "ranger"

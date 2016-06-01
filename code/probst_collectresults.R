@@ -22,11 +22,6 @@ res_classif = res_classif[, 1:8, with = FALSE]
 reduceResultsDataTable(ids = 1073592, fun = function(r) as.data.frame(as.list(r)), reg = regis, fill = TRUE)
 res_regr = reduceResultsDataTable(ids = ids_regr, fun = function(r) as.data.frame(as.list(r)), reg = regis, fill = TRUE)
 
-# ab hier weitermachen
 hyp_par = getJobTable()
-
-load("/nfsmb/koll/probst/Ranwrodom_Forest/RFParset/results/res_classif.RData")
-save(res_classif, file = "/nfsmb/koll/probst/Random_Forest/RFParset/results/res_classif.RData")
-save(res_regr, file = "/nfsmb/koll/probst/Random_Forest/RFParset/results/res_regr.RData")
 
 save(res_classif, res_regr, error_ids, wrong_ids, hyp_par, file = "/nfsmb/koll/probst/Random_Forest/RFParset/results/results.RData")
