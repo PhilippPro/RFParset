@@ -1,28 +1,11 @@
-library(batchtools)
 library(mlr)
 
-setwd("/nfsmb/koll/probst/Random_Forest/RFParset/results/")
-regis = loadRegistry("probs-muell")
-
-min(getJobStatus()$started, na.rm = T)
-max(getJobStatus()$done, na.rm = T)
-# 2 Tage hat es gebraucht auf dem lokalen Rechner (12 Kerne)
-
-error_ids = getErrorMessages()$job.id
-ids_ok = c(1:1716480)[-error_ids]
-ids_classif = ids_ok[ids_ok %in% 1:1077120]
-ids_regr = ids_ok[ids_ok %in% 1077121:1716480]
-
-res_classif = reduceResultsDataTable(ids = ids_classif, fun = function(r) as.data.frame(as.list(r)), reg = regis)
-
-hyp_par = getJobTable(1:1077120)
-
-save(res_classif, hyp_par, file = "/nfsmb/koll/probst/Random_Forest/RFParset/results/res_classif.RData")
-
-load("/nfsmb/koll/probst/Random_Forest/RFParset/results/res_classif.RData")
+load("/nfsmb/koll/probst/Random_Forest/RFParset/results/results.RData")
 param_randomForest = list(c("ntree", "mtry", "nodesize", "maxnodes"), c("sampsize", "replace"))
 param_ranger = list(c("num.trees", "mtry", "min.node.size"), c("replace", "sample.fraction"))
 param_randomForestSRC = list(c("ntree", "mtry", "nodesize", "nodedepth", "splitrule"), c("samptype", "sampsize"))
+
+
 
 i = 457
 for (i in unique(hyp_par$problem)) {
@@ -70,14 +53,9 @@ for (i in unique(hyp_par$problem)) {
   }
 }
 
+# get best parameter constellation for all datasets
 
-head(res_classif)
-head(hyp_par)
 
-res_classif = res_classif[1:5760, ]
-hyp_par = hyp_par[1:5760,]
-
-res_classif
 
 1077120/1716480 * 298
 reduceResultsDataTable(ids = 1691332, fun = function(r) as.data.frame(as.list(r)), reg = regis)
