@@ -6,7 +6,7 @@ dir = "/home/probst/Random_Forest/RFParset"
 setwd(paste0(dir,"/results"))
 source(paste0(dir,"/code/probst_defs.R"))
 
-unlink("probs-muell", recursive = TRUE)
+#unlink("probs-muell", recursive = TRUE)
 regis = makeExperimentRegistry("probs-muell", 
                              packages = c("mlr", "OpenML", "methods"),
                              source = "/nfsmb/koll/probst/Random_Forest/RFParset/code/probst_defs.R",
@@ -53,13 +53,14 @@ addExperiments(algo.designs = list(eval = ades))
 
 # FIXME: we need to add the defaults of each learner and defaults that we could invent.
 # defaults
-ades_def = data.frame()
+ades_default = data.frame()
 for (lid in "ranger") {
   ps = makeMyDefaultParamSet(lid)
   d = generateGridDesign(ps, resolution = 1)
   d = cbind(lrn.id = lid, d, stringsAsFactors = FALSE)
-  ades_def = rbind.fill(ades_def, d)
+  ades_default = rbind.fill(ades_default, d)
 }
+#addExperiments(algo.designs = list(eval = ades_default))
 
 summarizeExperiments()
 ids = chunkIds(findNotDone(), chunk.size = 1000)

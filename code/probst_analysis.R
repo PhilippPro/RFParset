@@ -1,12 +1,13 @@
 library(mlr)
+library(data.table)
 setwd("/nfsmb/koll/probst/Random_Forest/RFParset/results/")
 load("/nfsmb/koll/probst/Random_Forest/RFParset/results/results.RData")
 param_randomForest = list(c("ntree", "mtry", "nodesize", "maxnodes"), c("sampsize", "replace"))
 param_ranger = list(c("num.trees", "mtry", "min.node.size"), c("sample.fraction", "replace"))
 param_randomForestSRC = list(c("ntree", "mtry", "nodesize", "nodedepth", "splitrule"), c("sampsize", "samptype"))
 
+# classification
 # get best parameter constellation for all datasets
-
 hyp_par[c(1,5761)] # every 5760 jobs, there are the same hyp.par.settings
 res_classif_aggr = matrix(NA, 5760, 8)
 for(i in 1:5760){
@@ -19,27 +20,28 @@ for(i in 1:5760){
 colnames(res_classif_aggr) = colnames(res_classif_job)
 save(res_classif_aggr, file = "/nfsmb/koll/probst/Random_Forest/RFParset/results/results_aggr.RData")
 
+load("/nfsmb/koll/probst/Random_Forest/RFParset/results/results_aggr.RData")
+
 # get the 20 best configurations on average for each measure
 # And the winner is...
 hyp_par[which(res_classif_aggr[, 2] > 0.9)]
 res_classif_aggr[which(res_classif_aggr[, 2] >= c(sort(res_classif_aggr[, 2], decreasing = T)[20])), ]
-hyp_par[which(res_classif_aggr[, 2] >= c(sort(res_classif_aggr[, 2], decreasing = T)[20])), ]
-hyp_par[which(res_classif_aggr[, 3] <= c(sort(res_classif_aggr[, 3], decreasing = F)[20])), ]
-hyp_par[which(res_classif_aggr[, 4] <= c(sort(res_classif_aggr[, 4], decreasing = F)[20])), ]
-hyp_par[which(res_classif_aggr[, 5] >= c(sort(res_classif_aggr[, 5], decreasing = T)[20])), ]
-hyp_par[which(res_classif_aggr[, 6] <= c(sort(res_classif_aggr[, 6], decreasing = F)[20])), ]
-hyp_par[which(res_classif_aggr[, 7] <= c(sort(res_classif_aggr[, 7], decreasing = F)[20])), ]
+
+hyp_par[order(res_classif_aggr[, 2], decreasing = T)[1:10], ]
+hyp_par[order(res_classif_aggr[, 3], decreasing = F)[1:10], ]
+hyp_par[order(res_classif_aggr[, 4], decreasing = F)[1:10], ]
+hyp_par[order(res_classif_aggr[, 5], decreasing = T)[1:10], ]
+hyp_par[order(res_classif_aggr[, 6], decreasing = F)[1:10], ]
+hyp_par[order(res_classif_aggr[, 7], decreasing = F)[1:10], ]
 # nodesize-Effekt (+nodedepth) überlagert alles andere!, rfsrc am besten
+# beste Einstellung: randomForestSRC, ntree 9903, sampsize = 0.880, mtry = 0.566, nodesize = 0.0098, samptype = "swr", 
+# nodedepth = 0.855, splitrule = "normal"
 
-# randomForest
-hyp_par_rf = hyp_par[1:1920]
-res_classif_aggr_rf = data.table(res_classif_aggr[1:1920,])
-param = param_randomForest
-
-Visualize_results = function(hyp_par_rf, res_classif_aggr_rf, param) {
-for(k in colnames(res_classif_aggr_rf)[2:ncol(res_classif_aggr_rf)]) {
+# Visualization
+Visualize_results = function(hyp_par_rf, res_aggr_rf, param) {
+for(k in colnames(res_aggr_rf)[2:ncol(res_aggr_rf)]) {
   print(k)
-  data = cbind(res_classif_aggr_rf[, k, with = F], hyp_par_rf[, unlist(param), with = F])
+  data = cbind(res_aggr_rf[, k, with = F], hyp_par_rf[, unlist(param), with = F])
   boxplot(data[, k, with = F], main = k)
 
   data[, param[[1]][1] := as.numeric(data[[param[[1]][1]]]), with = FALSE]
@@ -53,21 +55,31 @@ for(k in colnames(res_classif_aggr_rf)[2:ncol(res_classif_aggr_rf)]) {
   task = makeRegrTask(id = "rf", data = data, target = k)
   lrn = makeLearner("regr.randomForest", par.vals = list(ntree = 1000)) #, predict.type = "se")
   model = train(lrn, task)
-  pd = generatePartialPredictionData(model, task, param[[1]])
+  pd = generatePartialPredictionData(model, task, param[[1]], gridsize = 20)
   print(plotPartialPrediction(pd))
+  
+ # Interactions
+ # pd = generatePartialPredictionData(model, task, param[[1]][c(1,3)], interaction = TRUE, gridsize = 20)
+ # print(plotPartialPrediction(pd), facet = param[[1]][3])
+  
+ # par(mfrow = c(4, 5))
+ # for(i in 1:20) {
+ #  plot(pd$data[c((i-1)*20 + 1):c(i*20), 2], pd$data[c((i-1)*20 + 1):c(i*20), 1], main = paste("nodesize", round(pd$data[c(i-1)*20 +1, 3],2)), ylab = k, xlab = colnames(pd$data)[2])
+ #}
+    
   
   # KI's machen wenig sinn, da hier von anderen Effekten überlagert!! (siehe ntree)
   #pd = generatePartialPredictionData(model, task, c("ntree"), fun = function(x) quantile(x, c(.25, .5, .75)))
   #plotPartialPrediction(pd)
   
-  pd = generatePartialPredictionData(model, task, param[[2]], interaction = TRUE)
+  pd = generatePartialPredictionData(model, task, param[[2]], interaction = TRUE, gridsize = 20)
   print(plotPartialPrediction(pd, facet = param[[2]][2]))
   print(plotPartialPrediction(pd))
 }
 }
 
 pdf("randomForest.pdf",width=13,height=9.5)
-Visualize_results(hyp_par[1:1920], param_randomForest)
+Visualize_results(hyp_par_rf = hyp_par[1:1920], res_aggr_rf = data.table(res_classif_aggr[1:1920,]), param = param_randomForest)
 dev.off()
 pdf("ranger.pdf",width=13,height=9.5)
 Visualize_results(hyp_par[1921:3840], data.table(res_classif_aggr[1921:3840,]), param_ranger)
@@ -76,19 +88,67 @@ pdf("randomForestSRC.pdf",width=13,height=9.5)
 Visualize_results(hyp_par_rf = hyp_par[3841:5760], res_classif_aggr_rf = data.table(res_classif_aggr[3841:5760,]), param = param_randomForestSRC)
 dev.off()
 
-# 1. Fazit: nodesize sehr klein setzen, maxnodes, nodedepth auf 1
+# 1. Fazit: nodesize sehr klein setzen, 
+# maxnodes auf 1
+# nodedepth auf 1
 # unwichtiger: ntree groß, mtry ca. 0.6, sampsize
+# Inkonsistenz bei sampsize bei den verschiedenen Algos. randomForest ist seltsam...
+# randomForestSRC besser, braucht aber auch länger
+# splitrule normal
 
+# Regression
+# scale the measures by computing rankings for each dataset
+res_regr_rank = as.data.frame(res_regr)
+for(i in 1:111){
+  print(i)
+  ordered_matrix = apply(res_regr[which(res_regr$job.id %in% (c((i-1)*5760+1077121):c(i*5760+1077120)))], 2, rank)
+  res_regr_rank[which(res_regr$job.id %in% (c((i-1)*5760+1077121):c(i*5760+1077120))),] = ordered_matrix
+}
 
+# get best parameter constellation for all datasets
+hyp_par[c(1077121, 1077122)] # every 5760 jobs, there are the same hyp.par.settings
+res_regr_aggr = matrix(NA, 5760, 6)
+for(i in 1:5760){
+  print(i)
+  res_regr_job = res_regr_rank[which(res_regr$job.id %in% seq(i+1077120, 1716480, 5760)),]
+  if (nrow(res_regr_job) == 111) {
+    res_regr_aggr[i, ] = colMeans(res_regr_job)
+  } 
+}
+colnames(res_regr_aggr) = colnames(res_regr_job)
+colnames(res_regr_aggr)[2:5] = paste(colnames(res_regr_aggr)[2:5], "rank", sep = "_")
+save(res_classif_aggr, res_regr_aggr, file = "/nfsmb/koll/probst/Random_Forest/RFParset/results/results_aggr.RData")
 
+load("/nfsmb/koll/probst/Random_Forest/RFParset/results/results_aggr.RData")
 
+res_regr_aggr[order(res_regr_aggr[, 2], decreasing = F)[1:30], ]
+res_regr_aggr[order(res_regr_aggr[, 6], decreasing = F)[1:10],]
 
+hyp_par[order(res_regr_aggr[, 2], decreasing = F)[1:100], ]
+hyp_par[order(res_regr_aggr[, 3], decreasing = F)[1:10], ]
+hyp_par[order(res_regr_aggr[, 4], decreasing = F)[1:10], ]
+hyp_par[order(res_regr_aggr[, 5], decreasing = F)[1:10], ]
+hyp_par[order(res_regr_aggr[, 6], decreasing = F)[1:10], ]
 
+pdf("randomForest_regr.pdf",width=13,height=9.5)
+Visualize_results(hyp_par[1:1920], data.table(res_regr_aggr[1:1920,]), param_randomForest)
+dev.off()
+pdf("ranger_regr.pdf",width=13,height=9.5)
+Visualize_results(hyp_par[1921:3840], data.table(res_regr_aggr[1921:3840,]), param_ranger)
+dev.off()
+pdf("randomForestSRC_regr.pdf",width=13,height=9.5)
+Visualize_results(hyp_par_rf = hyp_par[3841:5760], data.table(res_regr_aggr[3841:5760,]), param = param_randomForestSRC)
+dev.off()
 
-
-
-
-
+# Ähnliche Ergebnisse wie bei Klassifikation
+# nodesize sehr klein (bei ranger nicht unbedingt minimal) setzen
+# maxnodes möglichst groß: 1
+# nodedepth möglichst groß: 1
+# mtry ca 0.8
+# sample.fraction bei allen relativ groß setzen (ca.0.75) (Unterschied zur Regression)
+# splitrule: normal
+# ranger besser als randomForest besser als randomForestSRC
+# allerbesten Ergebnisse allerdings von randomForest!
 
 
 
