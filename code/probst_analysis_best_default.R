@@ -22,9 +22,19 @@ Visualize_diff_to_best_avg_result = function(hyp_par_rf, res_aggr_rf, param, res
   for(k in colnames(res_aggr_rf)[2:c(ncol(res_aggr_rf)-3)]) {
     def_best = order(res_classif_aggr[, k], decreasing = T)[1]
     def_best = res_classif[which(res_classif$job.id %in% seq(best,1077120, 5760)), ]
-    a = res_classif[ , max(acc), by = .(algo,did)]
     setkey(a, "algo")
-    hist(def_best$acc - a[a$algo == "randomForest"]$V1)
+    
+    a = res_classif[ , max(acc), by = .(algo,did)]
+    hist(a[a$algo == "randomForestSRC"]$V1 - def_best$acc)
+    
+    a = res_classif[ , max(multiclass.au1u), by = .(algo,did)]
+    hist(a[a$algo == "randomForestSRC"]$V1 - def_best$multiclass.au1u)
+    
+    a = res_classif[ , min(multiclass.brier), by = .(algo,did)]
+    hist(a[a$algo == "randomForestSRC"]$V1 - def_best$multiclass.brier)
+
+    a = res_classif[ , min(logloss), by = .(algo,did)]
+    hist(a[a$algo == "randomForestSRC"]$V1 - def_best$logloss)
   }
 }
 
