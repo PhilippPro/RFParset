@@ -1,4 +1,5 @@
 library(mlr)
+library(grid)
 library(data.table)
 setwd("/nfsmb/koll/probst/Random_Forest/RFParset/results/")
 load("/nfsmb/koll/probst/Random_Forest/RFParset/results/results.RData")
@@ -34,7 +35,7 @@ hyp_par[order(res_classif_aggr[, 5], decreasing = T)[1:10], ]
 hyp_par[order(res_classif_aggr[, 6], decreasing = F)[1:10], ]
 hyp_par[order(res_classif_aggr[, 7], decreasing = F)[1:10], ]
 # nodesize-Effekt (+nodedepth) überlagert alles andere!, rfsrc am besten
-# beste Einstellung: randomForestSRC, ntree 9903, sampsize = 0.880, mtry = 0.566, nodesize = 0.0098, samptype = "swr", 
+# beste Einstellung: randomForestSRC, ntree = 9903, sampsize = 0.880, mtry = 0.566, nodesize = 0.0098, samptype = "swr", 
 # nodedepth = 0.855, splitrule = "normal"
 
 # Visualization
@@ -151,14 +152,46 @@ dev.off()
 # allerbesten Ergebnisse allerdings von randomForest!
 
 
-
-
+# Function for pushing several ggplots in one graphic
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  numPlots = length(plots)
+ #  If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+  if (numPlots==1) {
+    print(plots[[1]])
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
 
 
 
 # specific dataset analysis
-i = 457
-for (i in unique(hyp_par$problem)) {
+param = param_randomForest 
+j = "nodesize"
+
+for (i in unique(hyp_par$problem)) { # i = 457
+  print(i)
   hyp_par_i = hyp_par[hyp_par$problem == i]
   hyp_par_i_error = hyp_par_i[!is.na(hyp_par_i$error)] # sample size for randomForest must be high enough to have more than two classes in inbag
   hyp_par_i = hyp_par_i[is.na(hyp_par_i$error)]
@@ -175,33 +208,32 @@ for (i in unique(hyp_par$problem)) {
   # for very high sampsize and FALSE = TRUE, there are no observation left for oob-predictions!
   # exclude these:
   hyp_par_i_rf = hyp_par_i_rf[!is.na(res_classif_i_rf$logloss)]
-  res_classif_i_rf = res_classif_i_rf[!is.na(res_classif_i_rf$logloss)]  
+  res_classif_i_rf = res_classif_i_rf[!is.na(res_classif_i_rf$logloss)] 
   
-  for(k in colnames(res_classif_i_rf)[2:ncol(res_classif_i_rf)]) {
-    print(k)
-    data = cbind(res_classif_i_rf[, k, with = F], hyp_par_i_rf[, c("ntree", "replace", "sampsize", "mtry", "nodesize", "maxnodes"), with = F])
-    boxplot(data[, k, with = F], main = k)
+  par(mfrow = c(2, 3))
+  plots = list()
+  for(k in colnames(res_classif_i_rf)[2:c(ncol(res_classif_i_rf)-1)]) {
+    #print(k)
+    data = cbind(res_classif_i_rf[, k, with = F], hyp_par_i_rf[,  unlist(param), with = F])
     data$replace = as.factor(data$replace)
     data$ntree = as.numeric(data$ntree)
-    par(mfrow = c(2, 3))
-    for(j in colnames(data)[-1])
-      plot(data[, k, with = F][[1]] ~ data[, j, with = FALSE][[1]], xlab = j, ylab = colnames(data)[1])
-    par(mfrow = c(1, 1))
     task = makeRegrTask(id = "rf", data = data, target = k)
     lrn = makeLearner("regr.randomForest", par.vals = list(ntree = 1000)) #, predict.type = "se")
     model = train(lrn, task)
-    pd = generatePartialPredictionData(model, task, c("ntree", "mtry", "nodesize", "maxnodes"))
+    pd = generatePartialPredictionData(model, task, j, gridsize = 20)
     pd$data
-    print(plotPartialPrediction(pd))
-    
+    plots[[k]] = plotPartialPrediction(pd)
     # KI's machen wenig sinn, da hier von anderen Effekten überlagert!! (siehe ntree)
     #pd = generatePartialPredictionData(model, task, c("ntree"), fun = function(x) quantile(x, c(.25, .5, .75)))
     #plotPartialPrediction(pd)
     
-    pd = generatePartialPredictionData(model, task, c("sampsize", "replace"), interaction = TRUE)
-    print(plotPartialPrediction(pd, facet = "replace"))
+    #pd = generatePartialPredictionData(model, task, c("sampsize", "replace"), interaction = TRUE)
+    #print(plotPartialPrediction(pd, facet = "replace"))
   }
+  
+  pdf(paste0(j, "/classif/", i),width=13,height=9.5)
+  multiplot(plots[["acc"]],plots[["ber"]], plots[["mmce"]], plots[["multiclass.au1u"]], plots[["multiclass.brier"]], plots[["logloss"]], cols = 2)
+  dev.off()
 }
-
 
 

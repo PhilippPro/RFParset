@@ -13,7 +13,6 @@ regis = makeExperimentRegistry("probs-muell",
                              work.dir = "/nfsmb/koll/probst/Random_Forest/RFParset/results",
                              conf.file = "/nfsmb/koll/probst/Random_Forest/RFParset/code/.batchtools.conf.R"
 )
-
 regis$cluster.functions = makeClusterFunctionsMulticore() 
 
 # add our selected OML dsets as problems
