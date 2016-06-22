@@ -6,16 +6,16 @@ dir = "/home/probst/Random_Forest/RFParset"
 setwd(paste0(dir,"/results"))
 source(paste0(dir,"/code/probst_defs.R"))
 
-#unlink("probs-muell", recursive = TRUE)
-regis = makeExperimentRegistry("probs-muell", 
-                             packages = c("mlr", "OpenML", "methods"),
+unlink("probs-muell", recursive = TRUE)
+regis = makeExperimentRegistry("probs-muell2", 
+                             packages = c("mlr", "OpenML", "methods"), 
                              source = "/nfsmb/koll/probst/Random_Forest/RFParset/code/probst_defs.R",
                              work.dir = "/nfsmb/koll/probst/Random_Forest/RFParset/results",
                              conf.file = "/nfsmb/koll/probst/Random_Forest/RFParset/code/.batchtools.conf.R"
 )
-regis$cluster.functions = makeClusterFunctionsMulticore() 
+regis$cluster.functions = makeClusterFunctionsMulticore(ncpus = 8) 
 
-# add our selected OML dsets as problems
+# add selected OML datasets as problems
 for (did in OMLDATASETS) {
   data = list(did = did)
   addProblem(name = as.character(did), data = data)
@@ -53,16 +53,20 @@ addExperiments(algo.designs = list(eval = ades))
 # FIXME: we need to add the defaults of each learner and defaults that we could invent.
 # defaults
 ades_default = data.frame()
-for (lid in "ranger") {
+for (lid in LEARNERIDS) {
   ps = makeMyDefaultParamSet(lid)
   d = generateGridDesign(ps, resolution = 1)
-  d = cbind(lrn.id = lid, d, stringsAsFactors = FALSE)
+  d = cbind(lrn.id = lid, default = "default", d, stringsAsFactors = FALSE)
   ades_default = rbind.fill(ades_default, d)
 }
-#addExperiments(algo.designs = list(eval = ades_default))
+addExperiments(algo.designs = list(eval = ades_default))
 
 summarizeExperiments()
 ids = chunkIds(findNotDone(), chunk.size = 1000)
+ids = chunkIds(findErrors(), chunk.size = 1000)
+
+submitJobs(1:10)
+submitJobs(11:384)
 
 submitJobs(ids)
 #submitJobs(ids, resources = list(chunk.ncpus = 9))
@@ -71,5 +75,5 @@ getErrorMessages()
 
 # zu Debugzwecken
 #lrn.id = "ranger"
-#par.vals = as.list(ades[1,-1])
+#par.vals = as.list(ades_default[73,-1])
 #data$did = 457

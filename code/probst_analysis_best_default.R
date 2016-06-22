@@ -1,8 +1,12 @@
 library(mlr)
 library(grid)
 library(data.table)
+library(ash)
+library(beanplot)
 setwd("/nfsmb/koll/probst/Random_Forest/RFParset/results/")
 load("/nfsmb/koll/probst/Random_Forest/RFParset/results/results.RData")
+source("/nfsmb/koll/probst/Random_Forest/RFParset/code/probst_defs.R")
+
 param_randomForest = list(c("ntree", "mtry", "nodesize", "maxnodes"), c("sampsize", "replace"))
 param_ranger = list(c("num.trees", "mtry", "min.node.size"), c("sample.fraction", "replace"))
 param_randomForestSRC = list(c("ntree", "mtry", "nodesize", "nodedepth", "splitrule"), c("sampsize", "samptype"))
@@ -17,6 +21,10 @@ res_classif$algo[which(res_classif$job.id %in% c(rep(seq(3841,1077120, 5760), ea
 # Write a dataset-id to the results
 res_classif$did = ceiling(res_classif$job.id / 5760)
 
+hyp_par$replace = as.factor(hyp_par$replace)
+hyp_par$ntree = as.numeric(hyp_par$ntree)
+hyp_par$num.trees = as.numeric(hyp_par$num.trees)
+
 res_classif_aggr = data.table(res_classif_aggr)
 res_classif_aggr$algo = NA
 res_classif_aggr$algo[1:1920] = "randomForest" 
@@ -24,19 +32,43 @@ res_classif_aggr$algo[1921:3840] = "ranger"
 res_classif_aggr$algo[3841:5760] = "randomForestSRC" 
 res_classif_aggr$did = 1:5760
 
-
+decrease = c(TRUE, FALSE, FALSE, TRUE, FALSE, FALSE)
+names(decrease) = colnames(res_classif_aggr)[2:c(ncol(res_classif_aggr)-3)]
 
 Visualize_diff_to_best_avg_result = function(hyp_par, res_aggr_rf, param, res_classif, algor) {
   diffs_all = list()
   for(k in colnames(res_aggr_rf)[2:c(ncol(res_aggr_rf)-3)]) {
     print(k)
+    
+    if(as.logical(decrease[k])) { 
+       best_fun = function(x) max(x) 
+       } else {
+       best_fun =   function(x) min(x)
+       }
+    
     res_aggr_rf = res_aggr_rf[res_aggr_rf$algo == algor]
-    did_best = res_aggr_rf[order(res_aggr_rf[res_aggr_rf$algo == algor, k, with = F], decreasing = T)[1]]$did
+    did_best = res_aggr_rf[order(res_aggr_rf[res_aggr_rf$algo == algor, k, with = F], decreasing = as.logical(decrease[k]))[1:10]]$did
     
-    hyp_par_best = hyp_par[did_best]
-    hyp_par_best = hyp_par_best[,unlist(param),with = F]
+    res_aggr_rf[did_best]
     
-    bests = res_classif[which(res_classif$job.id %in% seq(did_best,1077120, 5760)), ]
+    hyp_par_best_10 = hyp_par[did_best]
+    hyp_par_best_10 = hyp_par_best_10[,unlist(param),with = F]
+    
+    Mode <- function(x) {
+      ux <- unique(x)
+      ux[which.max(tabulate(match(x, ux)))]
+    }
+    
+    hyp_par_best = hyp_par_best_10[1,]
+    for(i in names(hyp_par_best_10)) 
+      if(is.numeric(hyp_par_best_10[[i]]) | is.integer(hyp_par_best_10[[i]])) {
+        hyp_par_best[, i] = mean(hyp_par_best_10[[i]])
+      } else {
+        hyp_par_best[, i] = Mode(hyp_par_best_10[[i]])
+      }
+    
+    
+    #bests = res_classif[which(res_classif$job.id %in% seq(did_best,1077120, 5760)), ]
     diffs = split(replicate(length(names(hyp_par_best)) + 1,numeric(187)), 1:c(length(names(hyp_par_best)) + 1))
     names(diffs) = c("best", names(hyp_par_best))
     
@@ -45,60 +77,109 @@ Visualize_diff_to_best_avg_result = function(hyp_par, res_aggr_rf, param, res_cl
       data = res_classif[res_classif$did == i & res_classif$algo == algor ]
       ids = data$job.id
       data = cbind(data[, k, with = F], hyp_par[hyp_par$job.id %in% data$job.id, unlist(param), with = F])
-      data[, param[[1]][1] := as.numeric(data[[param[[1]][1]]]), with = FALSE]
+      #data[, param[[1]][1] := as.numeric(data[[param[[1]][1]]]), with = FALSE]
       data[, param[[2]][2] := as.factor(data[[param[[2]][2]]]), with = FALSE]
       
       data = data[which(!is.na(data[, k, with = F]))]
       task = makeRegrTask(id = "rf", data = data, target = k)
-      lrn = makeLearner(paste0("regr.", algor), par.vals = list(ntree = 1000)) #, predict.type = "se")
+      lrn = makeLearner(paste0("regr.", algor)) #, predict.type = "se")
       model = train(lrn, task)
       pred = predict(model, task)
-      best = pred$data$response[which(ids %in% bests$job.id)]
-      diffs[["best"]][i] = max(pred$data$response) - best  # Hier evtl. auch Modellierung verwenden??
+      best = predict(model, newdata = hyp_par_best)$data$response
+      
+      diffs[["best"]][i] = best_fun(pred$data$response) - best  # Hier evtl. auch Modellierung verwenden??
       for(j in names(hyp_par_best)) { # change always one parameter; problem: at the edges of hyp_par, the estimation is not so stable
         param_i = makeMyParamSet(algor)$pars[[j]]
         if(param_i$type == "integer")
           hyp_par_vari = round(seq(param_i$lower, param_i$upper, length.out = 1000))
         if(param_i$type == "numeric")
           hyp_par_vari = seq(param_i$lower, param_i$upper, length.out = 1000)
-        if(param_i$type == "discrete")
+        if(param_i$type == "discrete" | param_i$type == "logical")
           hyp_par_vari = as.factor(names(param_i$values))
         hyp_par_test = hyp_par_best[rep(1,length(hyp_par_vari))]
         hyp_par_test[,j := hyp_par_vari, with = F]
         pred_test = predict(model, newdata = hyp_par_test)$data$response
-        diffs[[j]][i] = max(pred_test) - best
-        predict(model, newdata = hyp_par_best)
+        diffs[[j]][i] = best_fun(pred_test) - best
       }
     }
     diffs_all = c(diffs_all, list(diffs))
   }
   names(diffs_all) = colnames(res_aggr_rf)[2:c(ncol(res_aggr_rf)-3)]
+  return(diffs_all)
 }
 
-save(diffs, file = "diffs_hyp_par.RData")
+plot_diffs = function(diffs) {
+  par(mfrow = c(1,2), oma = c(0, 0, 1, 0))
+  
+  for(j in 1:length(diffs)){
+    diff_j = diffs[[j]]
+    
+    # density estimation
+    f = ash1(bin1(diff_j[[1]], nbin=50), 5)
+    plot(f, type = "l", xlab = names(diffs)[j], main = paste("Tunability of ", names(diffs)[j]))
+    
+    for(i in 2:length(diff_j)) {
+      if(any(diff_j[[i]] != 0)) {
+        f = ash1(bin1(diff_j[[i]], nbin=50), 5)
+        lines(f, col = i) 
+      }
+    }
+    legend_loc = c("topleft", "topright")
+    legend(legend_loc[as.numeric(decrease[j])+1], c(names(diff_j)), col = 1:length(diff_j), lty=1)
+    
+    # beanplot
+    beanplot(diff_j[which(sapply(diff_j, function(x) any(x != 0)) )], main = paste("Tunability of ", names(diffs)[j]),bw="nrd0")
+    mtext(substr(deparse(substitute(diffs)), 7, 1000), outer = TRUE, cex = 1)
+    }
+}
 
-lapply(diffs, mean)
 
-plot(lapply(diffs, density)[[4]], col = "red")
-lines(lapply(diffs, density)[[1]], col = "black")
-lines(lapply(diffs, density)[[2]], col = "blue")
-lines(lapply(diffs, density)[[3]], col = "green")
-lines(lapply(diffs, density)[[5]], col = "pink")
-lines(lapply(diffs, density)[[6]], col = "yellow")
-lines(lapply(diffs, density)[[7]], col = "orange")
-lines(lapply(diffs, density)[[8]], col = "purple")
-legend("topright", c("best",names(hyp_par_best)), col = c("black", "blue", "green", "red", "pink", "yellow", "orange", "purple"), lty=1)
-# Fazit: Modellierung klappt nicht so gut, Unterschiede zu klein! Wähle andere Surrogat-Funktion?
-# Am meisten Veränderung durch mtry, ntree und nodesize, evtl. noch sampsize
-# Quantitativ aber keine Aussage möglich
-
-Visualize_diff_to_best_avg_result(hyp_par = hyp_par, res_aggr_rf = res_classif_aggr, 
+diffs_randomForest = Visualize_diff_to_best_avg_result(hyp_par = hyp_par, res_aggr_rf = res_classif_aggr, res_classif = res_classif,
                                     param = param_randomForest, algor = "randomForest")
   
-Visualize_diff_to_best_avg_result(hyp_par = hyp_par, res_aggr_rf = res_classif_aggr, 
+diffs_ranger = Visualize_diff_to_best_avg_result(hyp_par = hyp_par, res_aggr_rf = res_classif_aggr,  res_classif = res_classif,
                                   param = param_ranger, algor = "ranger")
 
-Visualize_diff_to_best_avg_result(hyp_par = hyp_par, res_aggr_rf = res_classif_aggr, 
+diffs_randomForestSRC = Visualize_diff_to_best_avg_result(hyp_par = hyp_par, res_aggr_rf = res_classif_aggr,  res_classif = res_classif,
                                   param = param_randomForestSRC, algor = "randomForestSRC")
 
+save(diffs_randomForest, diffs_ranger, diffs_randomForestSRC, file = "diffs_hyp_par.RData")
+
+load("diffs_hyp_par.RData")
+
+pdf("rf_tunability.pdf",width=13,height=9)
+plot_diffs(diffs_randomForest)
+plot_diffs(diffs_ranger)
+plot_diffs(diffs_randomForestSRC)
+dev.off()
+
+# Fazit: Modellierung klappt nicht so gut, Unterschiede zu klein! Wähle andere Surrogat-Funktion?
+# Problem: Raum wird nicht so gut abgedeckt und Variierung hängt stark mit "bester" Hyperparametereinstellung zusammen
+
+# randomForest: 
+# acc/mmce tunebar durch  sampsize, mtry, nodesize, maxnodes
+# ber tunebar durch: sampsize, nodesize, mtry
+# multiclass.au1u tunebar durch: sampsize > nodesize
+# multiclass.brier tunebar durch: sampsize
+# logloss tunebar durch:  sampsize 
+
+# ranger: 
+# acc/mmce tunebar durch: sample.fraction, mtry, nodesize
+# ber tunebar durch: sample.fraction, mtry, nodesize
+# multiclass.au1u tunebar durch: sample.fraction >  nodesize > mtry 
+# multiclass.brier tunebar durch: sample.fraction, mtry, nodesize
+# logloss tunebar durch:  sample.fraction, mtry, nodesize
+
+# randomForestSRC: 
+# acc/mmce tunebar durch: splitrule > mtry > nodesize > ntree
+# ber tunebar durch: nodesize > nodedepth > splitrule > mtry
+# multiclass.au1u tunebar durch: mtry > ntree >  nodesize
+# multiclass.brier tunebar durch: splitrule > nodesize > mtry
+# logloss tunebar durch: splitrule > nodesize > mtry
+
+
+
+# Am meisten Veränderung durch sampsize, mtry, nodesize
+# ntree und replace spielen keine Rolle
+# Quantitativ aber keine Aussage möglich
 
