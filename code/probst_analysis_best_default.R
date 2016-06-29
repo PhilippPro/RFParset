@@ -49,7 +49,7 @@ Visualize_diff_to_best_avg_result = function(hyp_par, res_aggr_rf, param, res_cl
     res_aggr_rf = res_aggr_rf[res_aggr_rf$algo == algor]
     did_best = res_aggr_rf[order(res_aggr_rf[res_aggr_rf$algo == algor, k, with = F], decreasing = as.logical(decrease[k]))[1:10]]$did
     
-    res_aggr_rf[did_best]
+    res_aggr_rf[did %in% did_best]
     
     hyp_par_best_10 = hyp_par[did_best]
     hyp_par_best_10 = hyp_par_best_10[,unlist(param),with = F]
@@ -171,15 +171,77 @@ dev.off()
 # logloss tunebar durch:  sample.fraction, mtry, nodesize
 
 # randomForestSRC: 
-# acc/mmce tunebar durch: splitrule > mtry > nodesize > ntree
-# ber tunebar durch: nodesize > nodedepth > splitrule > mtry
-# multiclass.au1u tunebar durch: mtry > ntree >  nodesize
-# multiclass.brier tunebar durch: splitrule > nodesize > mtry
-# logloss tunebar durch: splitrule > nodesize > mtry
-
-
+# acc/mmce tunebar durch: nodesize > splitrule > sampsize , nodedepth, mtry
+# ber tunebar durch: nodesize > sampsize, splitrule, mtry, nodedepth
+# multiclass.au1u tunebar durch: nodesize > splitrule, nodedepth, mtry
+# multiclass.brier tunebar durch: nodesize > splitrule > sampsize
+# logloss tunebar durch: nodesize > splitrule, sampsize, samptype
 
 # Am meisten Veränderung durch sampsize, mtry, nodesize
 # ntree und replace spielen keine Rolle
 # Quantitativ aber keine Aussage möglich
+
+
+
+
+
+
+
+
+
+
+hyp_par_def[c(1,385)] # every 384 jobs, there are the same hyp.par.settings
+res_classif_def_aggr = matrix(NA, 384, 8)
+for(i in 1:384){
+  print(i)
+  res_classif_job = res_classif_def[which(res_classif_def$job.id %in% seq(i,71808, 384))]
+  if (nrow(res_classif_job) == 187) {
+    res_classif_def_aggr[i, ] = colMeans(res_classif_job)
+  } 
+}
+colnames(res_classif_def_aggr) = colnames(res_classif_job)
+
+res_classif_def_aggr
+
+
+# Vergleich der besten Default mit defaults aus den Paketen
+
+load("/nfsmb/koll/probst/Random_Forest/RFParset/results/results.RData")
+
+    job_id = hyp_par_def[lrn.id == "randomForest" & replace == TRUE & sampsize == 0.632 & mtry == "sqrt" & nodesize == "one"]$job.id
+    res_classif_def_best = res_classif_def[job.id %in% job_id]
+    
+    k = "acc"
+    res_aggr_rf = res_classif_aggr
+    res_aggr_rf = res_aggr_rf[res_aggr_rf$algo == "randomForest"]
+    did_best = res_aggr_rf[order(res_aggr_rf[res_aggr_rf$algo == "randomForest", k, with = F], decreasing = as.logical(decrease[k]))[1]]$did
+    
+    rbind(round(colMeans(res_classif_def_best),4),
+          unlist(round(res_aggr_rf[did == did_best, c(1,2,3,4,5,6,7,8), with = F],4)))
+    
+
+ # ranger
+job_id = hyp_par_def[lrn.id == "ranger" & replace == TRUE & sample.fraction == 1 & mtry == "sqrt" & min.node.size == "one"]$job.id
+res_classif_def_best = res_classif_def[job.id %in% job_id]
+
+k = "acc"
+res_aggr_rf = res_classif_aggr
+res_aggr_rf = res_aggr_rf[res_aggr_rf$algo == "ranger"]
+did_best = res_aggr_rf[order(res_aggr_rf[res_aggr_rf$algo == "ranger", k, with = F], decreasing = as.logical(decrease[k]))[1]]$did
+
+rbind(round(colMeans(res_classif_def_best),4),
+      unlist(round(res_aggr_rf[did == did_best, c(1,2,3,4,5,6,7,8), with = F],4)))
+
+# randomForestSRC
+job_id = hyp_par_def[lrn.id == "randomForestSRC"  & sampsize == 0.632 & mtry == "sqrt" & nodesize == "one" & samptype == "swor" & splitrule == "normal"]$job.id
+res_classif_def_best = res_classif_def[job.id %in% job_id]
+
+k = "acc"
+res_aggr_rf = res_classif_aggr
+res_aggr_rf = res_aggr_rf[res_aggr_rf$algo == "randomForestSRC"]
+did_best = res_aggr_rf[order(res_aggr_rf[res_aggr_rf$algo == "randomForestSRC", k, with = F], decreasing = as.logical(decrease[k]))[1]]$did
+
+rbind(round(colMeans(res_classif_def_best),4),
+      unlist(round(res_aggr_rf[did == did_best, c(1,2,3,4,5,6,7,8), with = F],4)))
+
 
