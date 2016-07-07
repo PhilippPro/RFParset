@@ -6,12 +6,12 @@ dir = "/home/probst/Random_Forest/RFParset"
 setwd(paste0(dir,"/results"))
 source(paste0(dir,"/code/probst_defs.R"))
 
-unlink("probs-muell", recursive = TRUE)
-regis = makeExperimentRegistry("probs-muell", 
-                             packages = c("mlr", "OpenML", "methods"), 
-                             source = "/nfsmb/koll/probst/Random_Forest/RFParset/code/probst_defs.R",
-                             work.dir = "/nfsmb/koll/probst/Random_Forest/RFParset/results",
-                             conf.file = "/nfsmb/koll/probst/Random_Forest/RFParset/code/.batchtools.conf.R"
+#unlink("probs-muell2", recursive = TRUE)
+regis = makeExperimentRegistry("probs-muell2", 
+                               packages = c("mlr", "OpenML", "methods"), 
+                               source = "/nfsmb/koll/probst/Random_Forest/RFParset/code/probst_defs.R",
+                               work.dir = "/nfsmb/koll/probst/Random_Forest/RFParset/results",
+                               conf.file = "/nfsmb/koll/probst/Random_Forest/RFParset/code/.batchtools.conf.R"
 )
 regis$cluster.functions = makeClusterFunctionsMulticore() 
 
@@ -38,30 +38,18 @@ addAlgorithm("eval", fun = function(job, data, instance, lrn.id, ...) {
   performance(oob, measures = measures, model = mod)
 })
 
-# Random maximin design
-set.seed(125)
-ades = data.frame()
+# FIXME: we need to add the defaults of each learner and defaults that we could invent.
+# defaults
+ades_default = data.frame()
 for (lid in LEARNERIDS) {
-  ps = makeMyParamSet(lid, task = NULL)
-  des.size = DESSIZE(ps)
-  d = generateDesign(des.size, ps)
-  d = cbind(lrn.id = lid, d, stringsAsFactors = FALSE)
-  ades = rbind.fill(ades, d)
+  ps = makeMyDefaultParamSet(lid)
+  d = generateGridDesign(ps, resolution = 1)
+  d = cbind(lrn.id = lid, default = "default", d, stringsAsFactors = FALSE)
+  ades_default = rbind.fill(ades_default, d)
 }
-addExperiments(algo.designs = list(eval = ades))
+addExperiments(algo.designs = list(eval = ades_default))
 
 summarizeExperiments()
 ids = chunkIds(findNotDone(), chunk.size = 1000)
 
 submitJobs(ids)
-#submitJobs(ids, resources = list(chunk.ncpus = 9))
-getStatus()
-
-getErrorMessages()
-ids = chunkIds(findErrors(), chunk.size = 1000)
-
-# zu Debugzwecken
-#lrn.id = "ranger"
-#par.vals = as.list(ades_default[73,-1])
-#data$did = 457
-

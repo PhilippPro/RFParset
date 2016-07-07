@@ -147,7 +147,7 @@ save(diffs_randomForest, diffs_ranger, diffs_randomForestSRC, file = "diffs_hyp_
 
 load("diffs_hyp_par.RData")
 
-pdf("rf_tunability.pdf",width=13,height=9)
+pdf("rf_tunability.pdf",width=18,height=9)
 plot_diffs(diffs_randomForest)
 plot_diffs(diffs_ranger)
 plot_diffs(diffs_randomForestSRC)
@@ -188,7 +188,7 @@ dev.off()
 
 
 
-
+# AB hier müllig!
 
 hyp_par_def[c(1,385)] # every 384 jobs, there are the same hyp.par.settings
 res_classif_def_aggr = matrix(NA, 384, 8)
@@ -200,26 +200,119 @@ for(i in 1:384){
   } 
 }
 colnames(res_classif_def_aggr) = colnames(res_classif_job)
+res_classif_def_aggr[1:64,][res_classif_def_aggr[1:64,2] == max(res_classif_def_aggr[1:64,2])]
 
-res_classif_def_aggr
-
-
+hyp_par_def[order(res_classif_def_aggr[1:64, 2], decreasing = T)[1:2]]
+hyp_par_def[order(res_classif_def_aggr[65:132, 2], decreasing = T)[1:2] + 64]
+hyp_par_def[order(res_classif_def_aggr[133:384, 2], decreasing = T)[1:2] + 132]
+# Das ist kein Zufall!
+res_classif_def_aggr = data.table(res_classif_def_aggr)
+res_classif_def_aggr$algo = c(rep("randomForest", 64), rep("ranger", 64), rep("randomForestSRC", 256))
+  
 # Vergleich der besten Default mit defaults aus den Paketen
 
-load("/nfsmb/koll/probst/Random_Forest/RFParset/results/results.RData")
-
-    job_id = hyp_par_def[lrn.id == "randomForest" & replace == TRUE & sampsize == 0.632 & mtry == "sqrt" & nodesize == "one"]$job.id
+    job_id = hyp_par_def[lrn.id == "randomForest" & replace == TRUE & sampsize == 1 & mtry == "sqrt" & nodesize == "one"]$job.id
     res_classif_def_best = res_classif_def[job.id %in% job_id]
+    res_def = round(colMeans(res_classif_def_best),4)
+    job_id = hyp_par_def[lrn.id == "ranger" & replace == TRUE & sample.fraction == 1 & mtry == "sqrt" & min.node.size == "one"]$job.id
+    res_classif_def_best = res_classif_def[job.id %in% job_id]
+    res_def = rbind(res_def, round(colMeans(res_classif_def_best),4))
+    job_id = hyp_par_def[lrn.id == "randomForestSRC"  & sampsize == 1 & mtry == "sqrt" & nodesize == "one" & samptype == "swr" & splitrule == "normal"]$job.id
+    res_classif_def_best = res_classif_def[job.id %in% job_id]
+    res_def = rbind(res_def, round(colMeans(res_classif_def_best),4))
     
     k = "acc"
     res_aggr_rf = res_classif_aggr
     res_aggr_rf = res_aggr_rf[res_aggr_rf$algo == "randomForest"]
-    did_best = res_aggr_rf[order(res_aggr_rf[res_aggr_rf$algo == "randomForest", k, with = F], decreasing = as.logical(decrease[k]))[1]]$did
+    did_best1 = res_aggr_rf[order(res_aggr_rf[res_aggr_rf$algo == "randomForest", k, with = F], decreasing = as.logical(decrease[k]))[1]]$did
+    hyp_par[did_best1]
     
     rbind(round(colMeans(res_classif_def_best),4),
-          unlist(round(res_aggr_rf[did == did_best, c(1,2,3,4,5,6,7,8), with = F],4)))
+          unlist(round(res_aggr_rf[did == did_best1, c(1,2,3,4,5,6,7,8), with = F],4)),
+          res_classif_def_aggr[1:64,][res_classif_def_aggr[1:64,2] == max(res_classif_def_aggr[1:64,2])])
+    # Verbesserung um 0.0011 (immerhin)
+    
+    
+    # LOOCV
+    # mit data.table
+    did_best = replicate(6, matrix(NA, 187, 3), simplify=F)
+    names(did_best) = colnames(res_classif)[2:7]
+    
+    hyp_par[c(1,5761)] # every 5760 jobs, there are the same hyp.par.settings
+    
+    for(j in 1:187){
+      print(paste(j, "HAAAAAAALLO"))
+      
+      res_classif$hyp_id = res_classif$job.id - 5760 * (res_classif$did - 1)
+      res_eval = res_classif[res_classif$did != j]
+      setkey(res_eval, hyp_id)
+      res_eval_mean = res_eval[,list(algo = algo[1], acc = mean(acc), ber = mean(ber), mmce = mean(mmce), multiclass.au1u = mean(multiclass.au1u), 
+                                     multiclass.brier = mean(multiclass.brier), logloss = mean(logloss)), by = hyp_id]
+      res_eval_length = res_eval[,list(acc = length(acc), ber = length(ber), mmce = length(mmce), multiclass.au1u = length(multiclass.au1u), 
+                                       multiclass.brier = length(multiclass.brier), logloss = length(logloss)), by = hyp_id]
+      
+      # pro Algorithmus!
+      res_eval_mean2 = res_eval_mean[c(res_eval_length[,acc] == 186),]
+      did_best$acc[j,] = res_eval_mean2[, hyp_id[which.max(acc)], by = algo]$V1
+      res_eval_mean2 = res_eval_mean[c(res_eval_length[,ber] == 186),]
+      did_best$ber[j,] =res_eval_mean2[, hyp_id[which.min(ber)], by = algo]$V1
+      res_eval_mean2 = res_eval_mean[c(res_eval_length[,mmce] == 186),]
+      did_best$mmce[j,] =res_eval_mean2[, hyp_id[which.min(mmce)], by = algo]$V1
+      res_eval_mean2 = res_eval_mean[c(res_eval_length[,multiclass.au1u] == 186),]
+      did_best$multiclass.au1u[j,] =res_eval_mean2[, hyp_id[which.max(multiclass.au1u)], by = algo]$V1
+      res_eval_mean2 = res_eval_mean[c(res_eval_length[,multiclass.brier] == 186),]
+      did_best$multiclass.brier[j,] =res_eval_mean2[, hyp_id[which.min(multiclass.brier)], by = algo]$V1
+      res_eval_mean2 = res_eval_mean[c(res_eval_length[,logloss] == 186),]
+      did_best$logloss[j,] = res_eval_mean2[, hyp_id[which.min(logloss)], by = algo]$V1
+    }
+    
+    res_auswahl = res_classif[res_classif$job.id %in% c(did_best$acc + 0:186 * 5760),]
+    res_auswahl[,mean(acc), by = algo]
+    
+    res_auswahl = res_classif[res_classif$job.id %in% c(did_best$ber + 0:186 * 5760),]
+    res_auswahl[,mean(ber), by = algo]
+    
+    res_auswahl = res_classif[res_classif$job.id %in% c(did_best$mmce + 0:186 * 5760),]
+    res_auswahl[,mean(mmce), by = algo]
+    
+    res_auswahl = res_classif[res_classif$job.id %in% c(did_best$multiclass.au1u + 0:186 * 5760),]
+    res_auswahl[,mean(multiclass.au1u), by = algo]
+    
+    res_auswahl = res_classif[res_classif$job.id %in% c(did_best$multiclass.brier + 0:186 * 5760),]
+    res_auswahl[,mean(multiclass.brier), by = algo]
+    
+    res_auswahl = res_classif[res_classif$job.id %in% c(did_best$logloss + 0:186 * 5760),]
+    res_auswahl[,mean(logloss), by = algo]
+    
+    # logloss stark reduziert, andere Ergebnisse sehr ähnlich zu den normalen besten defaults
+    
+    res_def
+    res_classif_def_aggr[,list(max(acc, na.rm=T), min(ber, na.rm=T), min(mmce, na.rm=T), max(multiclass.au1u, na.rm=T), min(multiclass.brier, na.rm=T), min(logloss, na.rm=T)), by = algo]
+    
+# Fazit: Die "neuen" Defaults sind kaum besser, Ergebnisse ähnlich. 
+
     
 
+    
+# Tuning ranges
+  res_eval = res_classif[, .(hyp_id = hyp_id[which.min(acc)]), by = .(algo, did)]
+  hyp_par_best = hyp_par[sort(unique(res_eval$hyp_id))]
+  hyp_par_best[,.(min(ntree), max(ntree)), by = lrn.id]
+  # klappt nicht gut, ganze Bandbreite wird abgedeckt
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+# Experimente neu starten!
  # ranger
 job_id = hyp_par_def[lrn.id == "ranger" & replace == TRUE & sample.fraction == 1 & mtry == "sqrt" & min.node.size == "one"]$job.id
 res_classif_def_best = res_classif_def[job.id %in% job_id]

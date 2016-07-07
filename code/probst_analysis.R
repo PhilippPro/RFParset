@@ -28,7 +28,11 @@ load("/nfsmb/koll/probst/Random_Forest/RFParset/results/results_aggr.RData")
 hyp_par[which(res_classif_aggr[, 2] > 0.9)]
 res_classif_aggr[which(res_classif_aggr[, 2] >= c(sort(res_classif_aggr[, 2], decreasing = T)[20])), ]
 
-hyp_par[order(res_classif_aggr[, 2], decreasing = T)[1:10], ]
+interest = c("lrn.id", "ntree", "replace", "sampsize", "mtry", "nodesize", "maxnodes", "num.trees", "sample.fraction", "min.node.size", "samptype", "nodedepth", "splitrule")
+hyp_par[order(res_classif_aggr[, 2], decreasing = T)[1:10], interest , with = F]
+
+res_classif_aggr[order(res_classif_aggr[, 2], decreasing = T)[1:10],]
+
 hyp_par[order(res_classif_aggr[, 3], decreasing = F)[1:10], ]
 hyp_par[order(res_classif_aggr[, 4], decreasing = F)[1:10], ]
 hyp_par[order(res_classif_aggr[, 5], decreasing = T)[1:10], ]
@@ -79,14 +83,14 @@ for(k in colnames(res_aggr_rf)[2:ncol(res_aggr_rf)]) {
 }
 }
 
-pdf("randomForest.pdf",width=13,height=9.5)
+pdf("randomForest2.pdf",width=15,height=9.5)
 Visualize_results(hyp_par_rf = hyp_par[1:1920], res_aggr_rf = data.table(res_classif_aggr[1:1920,]), param = param_randomForest)
 dev.off()
 pdf("ranger.pdf",width=13,height=9.5)
 Visualize_results(hyp_par[1921:3840], data.table(res_classif_aggr[1921:3840,]), param_ranger)
 dev.off()
 pdf("randomForestSRC.pdf",width=13,height=9.5)
-Visualize_results(hyp_par_rf = hyp_par[3841:5760], res_classif_aggr_rf = data.table(res_classif_aggr[3841:5760,]), param = param_randomForestSRC)
+Visualize_results(hyp_par_rf = hyp_par[3841:5760], data.table(res_classif_aggr[3841:5760,]), param = param_randomForestSRC)
 dev.off()
 
 # 1. Fazit: nodesize sehr klein setzen, 
