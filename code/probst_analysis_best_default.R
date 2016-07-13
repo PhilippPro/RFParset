@@ -37,6 +37,7 @@ names(decrease) = colnames(res_classif_aggr)[2:c(ncol(res_classif_aggr)-3)]
 
 Visualize_diff_to_best_avg_result = function(hyp_par, res_aggr_rf, param, res_classif, algor) {
   diffs_all = list()
+  hyp_par_best_all = list()
   for(k in colnames(res_aggr_rf)[2:c(ncol(res_aggr_rf)-3)]) {
     print(k)
     
@@ -71,6 +72,7 @@ Visualize_diff_to_best_avg_result = function(hyp_par, res_aggr_rf, param, res_cl
     #bests = res_classif[which(res_classif$job.id %in% seq(did_best,1077120, 5760)), ]
     diffs = split(replicate(length(names(hyp_par_best)) + 1,numeric(187)), 1:c(length(names(hyp_par_best)) + 1))
     names(diffs) = c("best", names(hyp_par_best))
+    hyp_par_best_i = diffs
     
     for(i in 1:187){
       print(i)
@@ -100,12 +102,16 @@ Visualize_diff_to_best_avg_result = function(hyp_par, res_aggr_rf, param, res_cl
         hyp_par_test[,j := hyp_par_vari, with = F]
         pred_test = predict(model, newdata = hyp_par_test)$data$response
         diffs[[j]][i] = best_fun(pred_test) - best
+        hyp_par_best_i[[j]][i] = hyp_par_vari[best_fun(pred_test) == pred_test][1]
       }
     }
     diffs_all = c(diffs_all, list(diffs))
+    hyp_par_best_all = c(hyp_par_best_all, list(hyp_par_best_i))
   }
   names(diffs_all) = colnames(res_aggr_rf)[2:c(ncol(res_aggr_rf)-3)]
-  return(diffs_all)
+  names(hyp_par_best_all) = colnames(res_aggr_rf)[2:c(ncol(res_aggr_rf)-3)]
+  
+  return(list(diffs_all = diffs_all, hyp_par_best_all = hyp_par_best_all))
 }
 
 plot_diffs = function(diffs) {
@@ -143,15 +149,45 @@ diffs_ranger = Visualize_diff_to_best_avg_result(hyp_par = hyp_par, res_aggr_rf 
 diffs_randomForestSRC = Visualize_diff_to_best_avg_result(hyp_par = hyp_par, res_aggr_rf = res_classif_aggr,  res_classif = res_classif,
                                   param = param_randomForestSRC, algor = "randomForestSRC")
 
-save(diffs_randomForest, diffs_ranger, diffs_randomForestSRC, file = "diffs_hyp_par.RData")
+save(diffs_randomForest, diffs_ranger, file = "diffs_hyp_par.RData")
 
 load("diffs_hyp_par.RData")
 
 pdf("rf_tunability.pdf",width=18,height=9)
-plot_diffs(diffs_randomForest)
-plot_diffs(diffs_ranger)
-plot_diffs(diffs_randomForestSRC)
+plot_diffs(diffs_randomForest$diffs_all)
+plot_diffs(diffs_ranger$diffs_all)
+plot_diffs(diffs_randomForestSRC$diffs_all)
 dev.off()
+
+pdf("rf_tuning_ranges.pdf", width=16, height=10)
+par(mfrow = c(2,3), oma = c(0, 0, 2, 0))
+
+#for(j in 1:6){
+#  for(i in 2:7)
+#    boxplot(diffs_randomForest$hyp_par_best_all[[j]][[i]], main = paste("Range of ", names(diffs_randomForest$hyp_par_best_all$acc)[i]))
+#  mtext(paste("randomForest", names(diffs_randomForest$hyp_par_best_all)[j]), outer = TRUE, cex = 1)
+#}
+
+for(j in 1:6){
+  for(i in 2:7)
+    beanplot(diffs_randomForest$hyp_par_best_all[[j]][[i]], main = paste("Range of ", names(diffs_randomForest$hyp_par_best_all$acc)[i]),bw="nrd0")
+  mtext(paste("randomForest", names(diffs_randomForest$hyp_par_best_all)[j]), outer = TRUE, cex = 1)
+}
+for(j in 1:6){
+  par(mfrow = c(2,3), oma = c(0, 0, 2, 0))
+  for(i in 2:6)
+    beanplot(diffs_ranger$hyp_par_best_all[[j]][[i]], main = paste("Range of ", names(diffs_ranger$hyp_par_best_all$acc)[i]),bw="nrd0")
+  mtext(paste("ranger", names(diffs_ranger$hyp_par_best_all)[j]), outer = TRUE, cex = 1)
+}
+
+for(j in 1:6){
+  par(mfrow = c(2,3), oma = c(0, 0, 2, 0))
+  for(i in 2:6)
+    beanplot(diffs_randomForestSRC$hyp_par_best_all[[j]][[i]], main = paste("Range of ", names(diffs_randomForestSRC$hyp_par_best_all$acc)[i]),bw="nrd0")
+  mtext(paste("randomForestSRC", names(diffs_randomForestSRC$hyp_par_best_all)[j]), outer = TRUE, cex = 1)
+}
+dev.off()
+
 
 # Fazit: Modellierung klappt nicht so gut, Unterschiede zu klein! Wähle andere Surrogat-Funktion?
 # Problem: Raum wird nicht so gut abgedeckt und Variierung hängt stark mit "bester" Hyperparametereinstellung zusammen
@@ -300,7 +336,8 @@ res_classif_def_aggr$algo = c(rep("randomForest", 64), rep("ranger", 64), rep("r
   hyp_par_best[,.(min(ntree), max(ntree)), by = lrn.id]
   # klappt nicht gut, ganze Bandbreite wird abgedeckt
     
-    
+  
+  # benutze stattdessen modellierte beste ergebnisse und deren bandbreite
     
     
     

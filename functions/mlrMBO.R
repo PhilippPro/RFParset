@@ -77,7 +77,6 @@ forest.wrapper.mbo = function(static, dynamic, ...) {
   
   design = generateDesign(mbo.init.design.size, smoof::getParamSet(objFun), fun = lhs::maximinLHS)
   
-  set.seed(123)
   result = mbo(fun = objFun, design = design, learner = mbo.learner, control = control)
   res = data.frame(result$opt.path)
   best = res[res$y == min(res$y),]

@@ -55,6 +55,16 @@ for(k in colnames(res_aggr_rf)[2:ncol(res_aggr_rf)]) {
   par(mfrow = c(2, 3))
   for(j in colnames(data)[-1])
     plot(data[, k, with = F][[1]] ~ data[, j, with = FALSE][[1]], xlab = j, ylab = colnames(data)[1])
+  
+  # Analysis of the thick lines in the plots
+  # abline(lm(data[, k, with = F][[1]] ~ data[, j, with = FALSE][[1]])$coefficients)
+  # # 0.75034, -0.02645
+  # j = "sampsize"
+  # abnormal = which((data[, k, with = F][[1]] < 0.75534 -0.02645 * data[, j, with = FALSE][[1]]) & (data[, k, with = F][[1]] > 0.74034 -0.02645 * data[, j, with = FALSE][[1]]))
+  # par(mfrow = c(2, 3))
+  # for(j in colnames(data)[-1])
+  # plot(data[abnormal, k, with = F][[1]] ~ data[abnormal, j, with = FALSE][[1]], xlab = j, ylab = colnames(data)[1])
+
   par(mfrow = c(1, 1))
   data = data[which(!is.na(data[, k, with = F]))]
   task = makeRegrTask(id = "rf", data = data, target = k)
@@ -78,6 +88,7 @@ for(k in colnames(res_aggr_rf)[2:ncol(res_aggr_rf)]) {
   #plotPartialPrediction(pd)
   
   pd = generatePartialPredictionData(model, task, param[[2]], interaction = TRUE, gridsize = 20)
+  pd$data = pd$data[-c(1,21),]
   print(plotPartialPrediction(pd, facet = param[[2]][2]))
   print(plotPartialPrediction(pd))
 }
