@@ -25,7 +25,7 @@ load("/nfsmb/koll/probst/Random_Forest/RFParset/results/results_aggr.RData")
 
 # get the 20 best configurations on average for each measure
 # And the winner is...
-hyp_par[which(res_classif_aggr[, 2] > 0.9)]
+hyp_par[which(res_classif_aggr[, 2] > 0.78)]
 res_classif_aggr[which(res_classif_aggr[, 2] >= c(sort(res_classif_aggr[, 2], decreasing = T)[20])), ]
 
 interest = c("lrn.id", "ntree", "replace", "sampsize", "mtry", "nodesize", "maxnodes", "num.trees", "sample.fraction", "min.node.size", "samptype", "nodedepth", "splitrule")
@@ -33,6 +33,7 @@ hyp_par[order(res_classif_aggr[, 2], decreasing = T)[1:10], interest , with = F]
 
 res_classif_aggr[order(res_classif_aggr[, 2], decreasing = T)[1:10],]
 
+hyp_par[order(res_classif_aggr[, 2], decreasing = TRUE)[1:10], ]
 hyp_par[order(res_classif_aggr[, 3], decreasing = F)[1:10], ]
 hyp_par[order(res_classif_aggr[, 4], decreasing = F)[1:10], ]
 hyp_par[order(res_classif_aggr[, 5], decreasing = T)[1:10], ]
@@ -53,9 +54,11 @@ for(k in colnames(res_aggr_rf)[2:ncol(res_aggr_rf)]) {
   data[, param[[2]][2] := as.factor(data[[param[[2]][2]]]), with = FALSE]
   
   par(mfrow = c(2, 3))
-  for(j in colnames(data)[-1])
-    plot(data[, k, with = F][[1]] ~ data[, j, with = FALSE][[1]], xlab = j, ylab = colnames(data)[1])
-  
+  for(j in colnames(data)[-1]) {
+    plot(data[, k, with = F][[1]] ~ data[, j, with = FALSE][[1]], xlab = j, ylab = colnames(data)[1], cex = 0.4)
+    lines(lowess(x = data[!is.na(data[, k, with = F][[1]]), j, with = FALSE][[1]], y = data[!is.na(data[, k, with = F][[1]]), k, with = F][[1]], f = 1))
+  }
+    
   # Analysis of the thick lines in the plots
   # abline(lm(data[, k, with = F][[1]] ~ data[, j, with = FALSE][[1]])$coefficients)
   # # 0.75034, -0.02645
@@ -140,7 +143,7 @@ load("/nfsmb/koll/probst/Random_Forest/RFParset/results/results_aggr.RData")
 res_regr_aggr[order(res_regr_aggr[, 2], decreasing = F)[1:30], ]
 res_regr_aggr[order(res_regr_aggr[, 6], decreasing = F)[1:10],]
 
-hyp_par[order(res_regr_aggr[, 2], decreasing = F)[1:100], ]
+hyp_par[order(res_regr_aggr[, 2], decreasing = F)[1:10], ]
 hyp_par[order(res_regr_aggr[, 3], decreasing = F)[1:10], ]
 hyp_par[order(res_regr_aggr[, 4], decreasing = F)[1:10], ]
 hyp_par[order(res_regr_aggr[, 5], decreasing = F)[1:10], ]

@@ -215,11 +215,6 @@ dev.off()
 
 # Am meisten Veränderung durch sampsize, mtry, nodesize
 # ntree und replace spielen keine Rolle
-# Quantitativ aber keine Aussage möglich
-
-
-
-
 
 
 
@@ -259,14 +254,18 @@ res_classif_def_aggr$algo = c(rep("randomForest", 64), rep("ranger", 64), rep("r
     
     k = "acc"
     res_aggr_rf = res_classif_aggr
+    bad_ids = which(res_aggr_rf[res_aggr_rf$algo == "randomForest"]$multiclass.au1u > 0.85)
+    bad_ids = c(bad_ids, which(hyp_par[1921:3840]$sample.fraction < 0.1) + 1920)
+    bad_ids = c(bad_ids, which(hyp_par[3841:5760]$sampsize < 0.1 | hyp_par[3841:5760]$sampsize > 0.9 |  hyp_par[3841:5760]$nodesize > 0.3) + 3840)
+    
     res_aggr_rf = res_aggr_rf[res_aggr_rf$algo == "randomForest"]
     did_best1 = res_aggr_rf[order(res_aggr_rf[res_aggr_rf$algo == "randomForest", k, with = F], decreasing = as.logical(decrease[k]))[1]]$did
     hyp_par[did_best1]
     
     rbind(round(colMeans(res_classif_def_best),4),
-          unlist(round(res_aggr_rf[did == did_best1, c(1,2,3,4,5,6,7,8), with = F],4)),
-          res_classif_def_aggr[1:64,][res_classif_def_aggr[1:64,2] == max(res_classif_def_aggr[1:64,2])])
-    # Verbesserung um 0.0011 (immerhin)
+          unlist(round(res_aggr_rf[did == did_best1, 1:8, with = F],4)),
+          unlist(res_classif_def_aggr[which(res_classif_def_aggr[1:64,2, with = F] == max(res_classif_def_aggr[1:64,2, with = F])), 1:8, with=F]))
+    # Verbesserung um 0.0014 (immerhin)
     
     
     # LOOCV
@@ -284,6 +283,8 @@ res_classif_def_aggr$algo = c(rep("randomForest", 64), rep("ranger", 64), rep("r
       setkey(res_eval, hyp_id)
       res_eval_mean = res_eval[,list(algo = algo[1], acc = mean(acc), ber = mean(ber), mmce = mean(mmce), multiclass.au1u = mean(multiclass.au1u), 
                                      multiclass.brier = mean(multiclass.brier), logloss = mean(logloss)), by = hyp_id]
+      res_eval_mean[hyp_id %in% bad_ids]$multiclass.au1u = 0 # mögliche unrealistische werte auf 0 setzen
+      
       res_eval_length = res_eval[,list(acc = length(acc), ber = length(ber), mmce = length(mmce), multiclass.au1u = length(multiclass.au1u), 
                                        multiclass.brier = length(multiclass.brier), logloss = length(logloss)), by = hyp_id]
       
@@ -291,40 +292,83 @@ res_classif_def_aggr$algo = c(rep("randomForest", 64), rep("ranger", 64), rep("r
       res_eval_mean2 = res_eval_mean[c(res_eval_length[,acc] == 186),]
       did_best$acc[j,] = res_eval_mean2[, hyp_id[which.max(acc)], by = algo]$V1
       res_eval_mean2 = res_eval_mean[c(res_eval_length[,ber] == 186),]
-      did_best$ber[j,] =res_eval_mean2[, hyp_id[which.min(ber)], by = algo]$V1
+      did_best$ber[j,] = res_eval_mean2[, hyp_id[which.min(ber)], by = algo]$V1
       res_eval_mean2 = res_eval_mean[c(res_eval_length[,mmce] == 186),]
       did_best$mmce[j,] =res_eval_mean2[, hyp_id[which.min(mmce)], by = algo]$V1
       res_eval_mean2 = res_eval_mean[c(res_eval_length[,multiclass.au1u] == 186),]
-      did_best$multiclass.au1u[j,] =res_eval_mean2[, hyp_id[which.max(multiclass.au1u)], by = algo]$V1
+      did_best$multiclass.au1u[j,] = res_eval_mean2[, hyp_id[which.max(multiclass.au1u)], by = algo]$V1
       res_eval_mean2 = res_eval_mean[c(res_eval_length[,multiclass.brier] == 186),]
       did_best$multiclass.brier[j,] =res_eval_mean2[, hyp_id[which.min(multiclass.brier)], by = algo]$V1
       res_eval_mean2 = res_eval_mean[c(res_eval_length[,logloss] == 186),]
       did_best$logloss[j,] = res_eval_mean2[, hyp_id[which.min(logloss)], by = algo]$V1
     }
     
-    res_auswahl = res_classif[res_classif$job.id %in% c(did_best$acc + 0:186 * 5760),]
-    res_auswahl[,mean(acc), by = algo]
+   
+    res_def = res_def[, -c(1, 8)]
+    rownames(res_def) = c("randomForest", "ranger", "randomForestSRC")
     
-    res_auswahl = res_classif[res_classif$job.id %in% c(did_best$ber + 0:186 * 5760),]
-    res_auswahl[,mean(ber), by = algo]
-    
-    res_auswahl = res_classif[res_classif$job.id %in% c(did_best$mmce + 0:186 * 5760),]
-    res_auswahl[,mean(mmce), by = algo]
-    
-    res_auswahl = res_classif[res_classif$job.id %in% c(did_best$multiclass.au1u + 0:186 * 5760),]
-    res_auswahl[,mean(multiclass.au1u), by = algo]
-    
-    res_auswahl = res_classif[res_classif$job.id %in% c(did_best$multiclass.brier + 0:186 * 5760),]
-    res_auswahl[,mean(multiclass.brier), by = algo]
-    
-    res_auswahl = res_classif[res_classif$job.id %in% c(did_best$logloss + 0:186 * 5760),]
-    res_auswahl[,mean(logloss), by = algo]
-    
-    # logloss stark reduziert, andere Ergebnisse sehr ähnlich zu den normalen besten defaults
-    
-    res_def
-    res_classif_def_aggr[,list(max(acc, na.rm=T), min(ber, na.rm=T), min(mmce, na.rm=T), max(multiclass.au1u, na.rm=T), min(multiclass.brier, na.rm=T), min(logloss, na.rm=T)), by = algo]
-    
+    pdf("comparison_mydef_to_standarddef_loocv.pdf",width=18,height=9)
+    for(j in names(did_best)) {
+      res_table = data.frame()      
+      
+      res_auswahl = res_classif[res_classif$job.id %in% c(did_best[[j]] + 0:186 * 5760),]
+      res_table = rbind(res_table, res_auswahl[,mean(acc), by = algo]$V1)
+      # häufigste parametereinstellung
+      hyp_par[as.numeric(apply(did_best$acc, 2, function(x) names(table(x)[1])))]
+      
+      res_auswahl = res_classif[res_classif$job.id %in% c(did_best[[j]] + 0:186 * 5760),]
+      res_table = rbind(res_table, res_auswahl[,mean(ber), by = algo]$V1)
+      hyp_par[as.numeric(apply(did_best$ber, 2, function(x) names(table(x)[1])))]
+      
+      res_auswahl = res_classif[res_classif$job.id %in% c(did_best[[j]] + 0:186 * 5760),]
+      res_table = rbind(res_table, res_auswahl[,mean(mmce), by = algo]$V1)
+      hyp_par[as.numeric(apply(did_best$mmce, 2, function(x) names(table(x)[1])))]
+      
+      # geht nicht!
+      res_auswahl = res_classif[res_classif$job.id %in% c(did_best[[j]] + 0:186 * 5760),]
+      res_table = rbind(res_table, res_auswahl[,mean(multiclass.au1u), by = algo]$V1)
+      hyp_par[as.numeric(apply(did_best$multiclass.au1u, 2, function(x) names(table(x)[1])))]
+      
+      res_auswahl = res_classif[res_classif$job.id %in% c(did_best[[j]] + 0:186 * 5760),]
+      res_table = rbind(res_table, res_auswahl[,mean(multiclass.brier), by = algo]$V1)
+      hyp_par[as.numeric(apply(did_best$multiclass.brier, 2, function(x) names(table(x)[1])))]
+      
+      res_auswahl = res_classif[res_classif$job.id %in% c(did_best[[j]] + 0:186 * 5760),]
+      res_table = rbind(res_table, res_auswahl[,mean(logloss), by = algo]$V1)
+      hyp_par[as.numeric(apply(did_best$logloss, 2, function(x) names(table(x)[1])))]
+      
+      
+      colnames(res_table) = c("randomForest", "ranger", "randomForestSRC")
+      res_table = t(res_table)
+      colnames(res_table) = c("acc", "ber", "mmce", "multiclass.au1u", "multiclass.brier", "logloss")
+      # logloss stark reduziert, andere Ergebnisse sehr ähnlich zu den normalen besten defaults
+      
+      plot_data = data.frame(matrix(NA, 6, 8))
+      colnames(plot_data) = c("which_default", "algo" , colnames(res_table))
+      plot_data$which_default = c(rep("my_default", 3), rep("standard_default", 3))
+      plot_data$algo = rep(c("randomForest", "ranger", "randomForestSRC"))
+      
+      for(i in colnames(res_table)) {
+        plot_data[, i] = c(res_table[,i], res_def[,i])
+      }
+      
+      p1 = ggplot(plot_data, aes(factor(algo), acc,  fill = which_default)) + 
+        geom_bar(stat="identity", position = "dodge") + coord_cartesian(ylim = range(plot_data[,"acc"]))
+      p2 = ggplot(plot_data, aes(factor(algo), ber,  fill = which_default)) + 
+        geom_bar(stat="identity", position = "dodge") + coord_cartesian(ylim = range(plot_data[,"ber"]))
+      p3 = ggplot(plot_data, aes(factor(algo), mmce,  fill = which_default)) + 
+        geom_bar(stat="identity", position = "dodge") + coord_cartesian(ylim = range(plot_data[,"mmce"]))
+      p4 = ggplot(plot_data, aes(factor(algo), multiclass.au1u,  fill = which_default)) + 
+        geom_bar(stat="identity", position = "dodge") + coord_cartesian(ylim = range(plot_data[,"multiclass.au1u"]))
+      p5 = ggplot(plot_data, aes(factor(algo), multiclass.brier,  fill = which_default)) + 
+        geom_bar(stat="identity", position = "dodge") + coord_cartesian(ylim = range(plot_data[,"multiclass.brier"]))
+      p6 = ggplot(plot_data, aes(factor(algo), logloss,  fill = which_default)) + 
+        geom_bar(stat="identity", position = "dodge") + coord_cartesian(ylim = range(plot_data[,"logloss"]))
+      
+      library(gridExtra)    
+      print(grid.arrange(p1, p2, p3, p4, p5, p6, nrow=2, ncol=3, top = paste(j, "optimized")))
+    }
+    dev.off()
 # Fazit: Die "neuen" Defaults sind kaum besser, Ergebnisse ähnlich. 
 
     
@@ -344,34 +388,3 @@ res_classif_def_aggr$algo = c(rep("randomForest", 64), rep("ranger", 64), rep("r
     
     
     
-    
-    
-    
-    
-    
-# Experimente neu starten!
- # ranger
-job_id = hyp_par_def[lrn.id == "ranger" & replace == TRUE & sample.fraction == 1 & mtry == "sqrt" & min.node.size == "one"]$job.id
-res_classif_def_best = res_classif_def[job.id %in% job_id]
-
-k = "acc"
-res_aggr_rf = res_classif_aggr
-res_aggr_rf = res_aggr_rf[res_aggr_rf$algo == "ranger"]
-did_best = res_aggr_rf[order(res_aggr_rf[res_aggr_rf$algo == "ranger", k, with = F], decreasing = as.logical(decrease[k]))[1]]$did
-
-rbind(round(colMeans(res_classif_def_best),4),
-      unlist(round(res_aggr_rf[did == did_best, c(1,2,3,4,5,6,7,8), with = F],4)))
-
-# randomForestSRC
-job_id = hyp_par_def[lrn.id == "randomForestSRC"  & sampsize == 0.632 & mtry == "sqrt" & nodesize == "one" & samptype == "swor" & splitrule == "normal"]$job.id
-res_classif_def_best = res_classif_def[job.id %in% job_id]
-
-k = "acc"
-res_aggr_rf = res_classif_aggr
-res_aggr_rf = res_aggr_rf[res_aggr_rf$algo == "randomForestSRC"]
-did_best = res_aggr_rf[order(res_aggr_rf[res_aggr_rf$algo == "randomForestSRC", k, with = F], decreasing = as.logical(decrease[k]))[1]]$did
-
-rbind(round(colMeans(res_classif_def_best),4),
-      unlist(round(res_aggr_rf[did == did_best, c(1,2,3,4,5,6,7,8), with = F],4)))
-
-
