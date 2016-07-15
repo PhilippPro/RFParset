@@ -170,6 +170,8 @@ dev.off()
 # allerbesten Ergebnisse allerdings von randomForest!
 
 
+# specific dataset analysis
+
 # Function for pushing several ggplots in one graphic
 multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
   library(grid)
@@ -203,8 +205,6 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 }
 
 
-
-# specific dataset analysis
 param = param_randomForest 
 j = "nodesize"
 

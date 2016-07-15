@@ -1,0 +1,19 @@
+---
+title: "Table of used datasets"
+output: html_document
+---
+
+```{r kable, echo = FALSE}
+load("/home/probst/Random_Forest/RFParset/results/clas.RData")
+load("/home/probst/Random_Forest/RFParset/results/reg.RData")
+tasks = rbind(clas_small, reg_small)
+tasks = tasks[, c("task_id", "task_type", "did", "name", "NumberOfInstances", "NumberOfFeatures", "NumberOfClasses",        
+                  "MajorityClassSize", "NumberOfNumericFeatures", "NumberOfSymbolicFeatures")]
+tasks$task_type = substr(tasks$task_type, 12, 1000)
+library(data.table)
+tasks = data.table(tasks)
+keys = c("task_type", "NumberOfInstances", "NumberOfFeatures")
+setkeyv(tasks, keys)
+library(knitr)
+kable(tasks)
+```
