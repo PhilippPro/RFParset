@@ -39,9 +39,8 @@ hyp_par[order(res_classif_aggr[, 4], decreasing = F)[1:10], ]
 hyp_par[order(res_classif_aggr[, 5], decreasing = T)[1:10], ]
 hyp_par[order(res_classif_aggr[, 6], decreasing = F)[1:10], ]
 hyp_par[order(res_classif_aggr[, 7], decreasing = F)[1:10], ]
-# nodesize-Effekt (+nodedepth) überlagert alles andere!, rfsrc am besten
-# beste Einstellung: randomForestSRC, ntree = 9903, sampsize = 0.880, mtry = 0.566, nodesize = 0.0098, samptype = "swr", 
-# nodedepth = 0.855, splitrule = "normal"
+# nodesize-Effekt (+nodedepth) überlagert alles andere!
+
 
 # Visualization
 Visualize_results = function(hyp_par_rf, res_aggr_rf, param) {
