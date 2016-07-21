@@ -2,7 +2,7 @@ library(batchtools)
 library(mlr)
 
 setwd("/nfsmb/koll/probst/Random_Forest/RFParset/results/")
-options(batchtools.progress = FALSE)
+options(batchtools.progress = TRUE)
 regis = loadRegistry("probs-muell")
 
 min(getJobStatus()$started, na.rm = T)
