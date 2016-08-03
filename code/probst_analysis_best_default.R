@@ -223,6 +223,7 @@ dev.off()
 
 hyp_par_def[c(1,385)] # every 384 jobs, there are the same hyp.par.settings
 res_classif_def_aggr = matrix(NA, 384, 8)
+
 for(i in 1:384){
   print(i)
   res_classif_job = res_classif_def[which(res_classif_def$job.id %in% seq(i,71808, 384))]
@@ -231,14 +232,44 @@ for(i in 1:384){
   } 
 }
 colnames(res_classif_def_aggr) = colnames(res_classif_job)
+
 res_classif_def_aggr[1:64,][res_classif_def_aggr[1:64,2] == max(res_classif_def_aggr[1:64,2])]
 
-hyp_par_def[order(res_classif_def_aggr[1:64, 2], decreasing = T)[1:2]]
-hyp_par_def[order(res_classif_def_aggr[65:132, 2], decreasing = T)[1:2] + 64]
-hyp_par_def[order(res_classif_def_aggr[133:384, 2], decreasing = T)[1:2] + 132]
+hyp_par_def[order(res_classif_def_aggr[1:64, 2], decreasing = T)[1:5]]
+hyp_par_def[order(res_classif_def_aggr[65:132, 2], decreasing = T)[1:5] + 64]
+hyp_par_def[order(res_classif_def_aggr[133:384, 2], decreasing = T)[1:5] + 132]
 # Das ist kein Zufall!
+
 res_classif_def_aggr = data.table(res_classif_def_aggr)
 res_classif_def_aggr$algo = c(rep("randomForest", 64), rep("ranger", 64), rep("randomForestSRC", 256))
+
+
+res_regr_def$did = floor((res_regr_def$job.id-1)/384)
+res_regr_def$algo = res_regr_def$job.id%%384
+res_regr_def_rank = res_regr_def[, list(algo, mse = rank(mse, na.last = "keep"),
+                                        mae = rank(mae, na.last = "keep"),
+                                        medae = rank(medae, na.last = "keep"),
+                                        medse = rank(medse, na.last = "keep")), by = did]
+
+
+res_regr_def_rank_na = res_regr_def_rank[,list(mse = mean(mse, na.rm=T), mae = mean(mae, na.rm=T), 
+                                     medae = mean(medae, na.rm=T), 
+                                     medse  = mean(medse , na.rm=T)), by = algo]
+
+hyp_par_def[order(res_regr_def_rank_na[1:64,2, with =F], decreasing = F)[1:5] ]
+hyp_par_def[order(res_regr_def_rank_na[65:132,2, with =F], decreasing = F)[1:5] + 64]
+hyp_par_def[order(res_regr_def_rank_na[133:384,2, with =F], decreasing = F)[1:5] +132]
+
+res_regr_def[1:385]
+
+res_regr_def_aggr = matrix(NA, 384, 6)
+colnames(res_regr_def_aggr) = colnames(res_regr_job)
+res_regr_def_aggr[order(res_regr_def_aggr[1:64, 2], decreasing = F)[1:5],]
+
+hyp_par_def[order(res_regr_def_aggr[1:64, 2], decreasing = F)[1:5]]
+hyp_par_def[order(res_regr_def_aggr[65:132, 2], decreasing = F)[1:5] + 64]
+hyp_par_def[order(res_regr_def_aggr[133:384, 2], decreasing = F)[1:5] + 132]
+
   
 # Vergleich der besten Default mit defaults aus den Paketen
 

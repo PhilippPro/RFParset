@@ -1,6 +1,8 @@
 library(mlr)
 library(grid)
 library(data.table)
+library(ggplot2)
+library(gridExtra)
 setwd("/nfsmb/koll/probst/Random_Forest/RFParset/results/")
 load("/nfsmb/koll/probst/Random_Forest/RFParset/results/results.RData")
 param_randomForest = list(c("ntree", "mtry", "nodesize", "maxnodes"), c("sampsize", "replace"))
@@ -47,16 +49,19 @@ Visualize_results = function(hyp_par_rf, res_aggr_rf, param) {
 for(k in colnames(res_aggr_rf)[2:ncol(res_aggr_rf)]) {
   print(k)
   data = cbind(res_aggr_rf[, k, with = F], hyp_par_rf[, unlist(param), with = F])
-  boxplot(data[, k, with = F], main = k)
+  print(qplot(y=unlist(data[, k, with = F]), x= 1, geom = "boxplot", main = k, ylab = k))
 
   data[, param[[1]][1] := as.numeric(data[[param[[1]][1]]]), with = FALSE]
   data[, param[[2]][2] := as.factor(data[[param[[2]][2]]]), with = FALSE]
   
   par(mfrow = c(2, 3))
+  bp = list()
   for(j in colnames(data)[-1]) {
-    plot(data[, k, with = F][[1]] ~ data[, j, with = FALSE][[1]], xlab = j, ylab = colnames(data)[1], cex = 0.4)
-    lines(lowess(x = data[!is.na(data[, k, with = F][[1]]), j, with = FALSE][[1]], y = data[!is.na(data[, k, with = F][[1]]), k, with = F][[1]], f = 1))
-  }
+    bp[[j]] <- ggplot(data, aes_string(x=j, y=k)) + geom_point(aes_string(x=j, y=k), size = 0.1) + geom_smooth()
+   }
+
+  print(marrangeGrob(grobs = bp, nrow = 2, ncol = ceiling(length(colnames(data)[-1])/2)))
+ 
     
   # Analysis of the thick lines in the plots
   # abline(lm(data[, k, with = F][[1]] ~ data[, j, with = FALSE][[1]])$coefficients)
@@ -72,38 +77,49 @@ for(k in colnames(res_aggr_rf)[2:ncol(res_aggr_rf)]) {
   task = makeRegrTask(id = "rf", data = data, target = k)
   lrn = makeLearner("regr.randomForest", par.vals = list(ntree = 1000)) #, predict.type = "se")
   model = train(lrn, task)
-  pd = generatePartialPredictionData(model, task, param[[1]], gridsize = 20)
-  print(plotPartialPrediction(pd))
+  rfsrc_k = min(c(length(param[[1]]), 4))
+  pd = generatePartialDependenceData(model, task, param[[1]][1:rfsrc_k], gridsize = 20)
+  print(plotPartialDependence(pd))
   
  # Interactions
- # pd = generatePartialPredictionData(model, task, param[[1]][c(1,3)], interaction = TRUE, gridsize = 20)
- # print(plotPartialPrediction(pd), facet = param[[1]][3])
-  
+  combi = combn(1:length(param[[1]][1:rfsrc_k]), 2)
+  pds = list()
+  for(i in 1:ncol(combi)) {
+    pd_inter = generatePartialDependenceData(model, task, param[[1]][combi[,i]], interaction = TRUE, gridsize = 20)
+    pds[[i]] = plotPartialDependence(pd_inter, geom = "tile")
+  }
+  print(marrangeGrob(grobs = pds, nrow = 2, ncol = ceiling(length(pds)/2)))
+
  # par(mfrow = c(4, 5))
  # for(i in 1:20) {
  #  plot(pd$data[c((i-1)*20 + 1):c(i*20), 2], pd$data[c((i-1)*20 + 1):c(i*20), 1], main = paste("nodesize", round(pd$data[c(i-1)*20 +1, 3],2)), ylab = k, xlab = colnames(pd$data)[2])
  #}
     
-  
+  pds = list()
+  for(i in 1:rfsrc_k) {
+    pd_inter = generatePartialDependenceData(model, task, c(param[[1]][i], param[[2]][1]), interaction = TRUE, gridsize = 20)
+    pds[[i]] = plotPartialDependence(pd_inter, geom = "tile")
+  }
+  print(marrangeGrob(grobs = pds, nrow = 2, ncol = ceiling(length(pds)/2)))
   # KI's machen wenig sinn, da hier von anderen Effekten überlagert!! (siehe ntree)
   #pd = generatePartialPredictionData(model, task, c("ntree"), fun = function(x) quantile(x, c(.25, .5, .75)))
   #plotPartialPrediction(pd)
   
-  pd = generatePartialPredictionData(model, task, param[[2]], interaction = TRUE, gridsize = 20)
+  pd = generatePartialDependenceData(model, task, param[[2]], interaction = TRUE, gridsize = 20)
   pd$data = pd$data[-c(1,21),]
-  print(plotPartialPrediction(pd, facet = param[[2]][2]))
-  print(plotPartialPrediction(pd))
+  print(plotPartialDependence(pd, facet = param[[2]][2]))
+  print(plotPartialDependence(pd))
 }
 }
 
-pdf("randomForest2.pdf",width=15,height=9.5)
+pdf("randomForest.pdf",width=15,height=9.5)
 Visualize_results(hyp_par_rf = hyp_par[1:1920], res_aggr_rf = data.table(res_classif_aggr[1:1920,]), param = param_randomForest)
 dev.off()
 pdf("ranger.pdf",width=13,height=9.5)
-Visualize_results(hyp_par[1921:3840], data.table(res_classif_aggr[1921:3840,]), param_ranger)
+Visualize_results(hyp_par_rf = hyp_par[1921:3840], res_aggr_rf = data.table(res_classif_aggr[1921:3840,]), param = param_ranger)
 dev.off()
 pdf("randomForestSRC.pdf",width=13,height=9.5)
-Visualize_results(hyp_par_rf = hyp_par[3841:5760], data.table(res_classif_aggr[3841:5760,]), param = param_randomForestSRC)
+Visualize_results(hyp_par_rf = hyp_par[3841:5760], res_aggr_rf = data.table(res_classif_aggr[3841:5760,]), param = param_randomForestSRC)
 dev.off()
 
 # 1. Fazit: nodesize sehr klein setzen, 

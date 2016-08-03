@@ -67,25 +67,85 @@ for(i in 1:187){
 }
 
 # optim anwenden (kann nur eindimensional optimieren)
+save(models, file = "/home/probst/Random_Forest/RFParset/results/models.RData")
 rm(models)
 
 opti = function(a) {
   theta = data.frame(ntree = 5147, mtry = 0.380, nodesize = 0.005, maxnodes = 1, 
             sampsize = 0.605, replace = factor(FALSE, levels = c(TRUE, FALSE))) 
-  theta[2] = as.numeric(a %*% unlist(tasks[1, 3:8, with =F]) )
+  pred = 0
+  print("durchlauf")
   for(i in 1:187){
-    print(i)
+    theta[2] = (a[1] * unlist(tasks[i, 3, with =F]) + a[2] * unlist(tasks[i, 4, with =F])) / unlist(tasks[i, 4, with =F])  # a[1] * sqrt(unname(unlist(tasks[i, 4, with =F])))/ unname(unlist(tasks[i, 4, with =F]))
+    # theta[3] = a[2]
     pred = pred + predict(models[[i]], newdata = theta)$data$response
-    pred = mean(pred)
   }
+  pred = pred/187
+  -pred
 }
 
-a = c(0.001, 0.01, 0.01, 0.01, 0.01, 0.01)
+a = c(0.001, 0.38)
 
-optim
+# nur n, p zur Optimierung verwenden!
+res = optim(a, opti, lower = c(0.001,0.001), upper = c(1, 1))
 
-# genetic programming approach
+opti(a)
+opti(res$par)
+# vierte Nachkommastelle um 1 verbessert
+
+res$par
+
+
+# genetic programming approach 
+
+opti_gp = function(f) {
+  theta = data.frame(ntree = 5147, mtry = 0.380, nodesize = 0.005, maxnodes = 1, 
+                     sampsize = 0.605, replace = factor(FALSE, levels = c(TRUE, FALSE))) 
+  pred = 0
+  print("durchlauf")
+  for(i in 1:187){
+    theta[2] = max(min(f(unname(unlist(tasks[i, 4, with =F])))/ unname(unlist(tasks[i, 4, with =F])) , 1) , 0) #, unname(unlist(tasks[i, 3, with =F])))
+    #print(f(unname(unlist(tasks[i, 4, with =F]))) / unname(unlist(tasks[i, 4, with =F])))
+    #print(theta[2])
+    pred = pred + predict(models[[i]], newdata = theta)$data$response
+  }
+  pred = pred/187
+  print(f)
+  print(pred)
+  -pred
+}
+
 library(rgp)
+functionSet1 = functionSet("+", "*", "-", "sqrt", "log", "/")
+inputVariableSet1 = inputVariableSet("x")
+constantFactorySet1 = constantFactorySet(function() rnorm(1))
+fitnessFunction1 = function(f) opti_gp(f)
+set.seed(121)
+gpResult = geneticProgramming(functionSet = functionSet1,
+                                          inputVariables = inputVariableSet1,
+                                          constantSet = constantFactorySet1, # Was sollte man hier einstellen?
+                                          fitnessFunction = fitnessFunction1,
+                                          stopCondition = makeTimeStopCondition(5 * 60))
+
+
+# (example of tutorial)
+library(rgp)
+functionSet1 = functionSet("+", "*", "-")
+inputVariableSet1 = inputVariableSet("x")
+constantFactorySet1 = constantFactorySet(function() rnorm(1))
+interval1 = seq(from = -pi, to = pi, by = 0.1)
+fitnessFunction1 = function(f) rmse(f(interval1), sin(interval1))
+set.seed(1)
+gpResult1 = geneticProgramming(functionSet = functionSet1,
+                                    inputVariables = inputVariableSet1,
+                                    constantSet = constantFactorySet1,
+                                    fitnessFunction = fitnessFunction1,
+                                    stopCondition = makeTimeStopCondition(5 * 60))
+bestSolution1 = gpResult1$population[[which.min(gpResult1$fitnessValues)]]
+
+plot(y = bestSolution1(interval1), x = interval1, type = "l",
+       lty = 1, xlab = "x", ylab = "y")
+lines(y = sin(interval1), x = interval1, lty = 2)
 
 geneticProgramming
 res_classif
