@@ -69,6 +69,7 @@ for(i in 1:187){
 # optim anwenden (kann nur eindimensional optimieren)
 save(models, file = "/home/probst/Random_Forest/RFParset/results/models.RData")
 rm(models)
+load("/home/probst/Random_Forest/RFParset/results/models.RData")
 
 opti = function(a) {
   theta = data.frame(ntree = 5147, mtry = 0.380, nodesize = 0.005, maxnodes = 1, 
@@ -104,7 +105,7 @@ opti_gp = function(f) {
   pred = 0
   print("durchlauf")
   for(i in 1:187){
-    theta[2] = max(min(f(unname(unlist(tasks[i, 4, with =F])))/ unname(unlist(tasks[i, 4, with =F])) , 1) , 0) #, unname(unlist(tasks[i, 3, with =F])))
+    theta[2] = f(unname(unlist(tasks[i, 4, with =F])))/ unname(unlist(tasks[i, 4, with =F])) #, unname(unlist(tasks[i, 3, with =F])))
     #print(f(unname(unlist(tasks[i, 4, with =F]))) / unname(unlist(tasks[i, 4, with =F])))
     #print(theta[2])
     pred = pred + predict(models[[i]], newdata = theta)$data$response
@@ -114,6 +115,7 @@ opti_gp = function(f) {
   print(pred)
   -pred
 }
+
 
 library(rgp)
 functionSet1 = functionSet("+", "*", "-", "sqrt", "log", "/")
