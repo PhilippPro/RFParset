@@ -58,7 +58,7 @@ submitJobs(ids)
 getStatus()
 
 getErrorMessages()
-ids = chunkIds(findErrors(), chunk.size = 1000)
+findErrors()
 
 # zu Debugzwecken
 #lrn.id = "ranger"

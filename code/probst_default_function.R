@@ -103,7 +103,9 @@ opti_gp = function(f) {
   theta = data.frame(ntree = 5147, mtry = 0.380, nodesize = 0.005, maxnodes = 1, 
                      sampsize = 0.605, replace = factor(FALSE, levels = c(TRUE, FALSE))) 
   pred = 0
-  print("durchlauf")
+  print("DURCHLAUF")
+  print(f)
+  #print(f(unname(unlist(tasks[i, 4, with =F]))))
   for(i in 1:187){
     theta[2] = f(unname(unlist(tasks[i, 4, with =F])))/ unname(unlist(tasks[i, 4, with =F])) #, unname(unlist(tasks[i, 3, with =F])))
     #print(f(unname(unlist(tasks[i, 4, with =F]))) / unname(unlist(tasks[i, 4, with =F])))
@@ -117,17 +119,31 @@ opti_gp = function(f) {
 }
 
 
+f = function(x) 1.2 * sqrt(x)
+opti_gp(f)
+
+
+
+
 library(rgp)
 functionSet1 = functionSet("+", "*", "-", "sqrt", "log", "/")
 inputVariableSet1 = inputVariableSet("x")
 constantFactorySet1 = constantFactorySet(function() rnorm(1))
 fitnessFunction1 = function(f) opti_gp(f)
+
 set.seed(121)
 gpResult = geneticProgramming(functionSet = functionSet1,
-                                          inputVariables = inputVariableSet1,
-                                          constantSet = constantFactorySet1, # Was sollte man hier einstellen?
-                                          fitnessFunction = fitnessFunction1,
-                                          stopCondition = makeTimeStopCondition(5 * 60))
+                              inputVariables = inputVariableSet1,
+                              constantSet = constantFactorySet1, # Was sollte man hier einstellen?
+                              fitnessFunction = fitnessFunction1,
+                              stopCondition = makeTimeStopCondition(5 * 60), 
+                              populationSize = 2,
+                              searchHeuristic =makeAgeFitnessComplexityParetoGpSearchHeuristic(lambda = ceiling(0.5 * 4), newIndividualsMaxDepth = 2))
+
+makeLocalRestartStrategy()
+
+
+
 
 
 # (example of tutorial)

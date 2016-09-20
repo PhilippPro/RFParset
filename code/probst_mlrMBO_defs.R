@@ -4,14 +4,14 @@ tasks = rbind(clas_small, reg_small)
 
 OMLDATASETS = tasks$did[!(tasks$did %in% c(1054, 1071, 1065))] # Cannot guess task.type from data! for these 3
 
-MEASURES = function(x) switch(x, "classif" = list(acc), "regr" = list(mse))
+MEASURES = function(x) switch(x, "classif" = list(acc, ber, mmce, multiclass.au1u, multiclass.brier, logloss, timetrain), "regr" = list(mse, mae, medae, medse, timetrain))
 
-LEARNERIDS = c("randomForest", "ranger", "randomForestSRC")
+LEARNERIDS = c("randomForest") # , "ranger", "randomForestSRC")
 
 makeMyParamSet = function(lrn.id, task = NULL) {
   switch(lrn.id,
          randomForest = makeParamSet(
-           makeIntegerParam("ntree", lower = 50, upper = 10000),
+           makeIntegerParam("ntree", lower = 5000, upper = 5000),
            makeLogicalParam("replace"),
            makeNumericParam("sampsize", lower = 0, upper = 1),
            makeNumericParam("mtry", lower = 0, upper = 1),
@@ -39,18 +39,79 @@ makeMyParamSet = function(lrn.id, task = NULL) {
   )
 }
 
-forest.mbo = function(task, lrn.id, ps, type) { # this is overfitting!
+CONVERTPARVAL = function(par.vals, task, lrn.id) {
+  typ = getTaskType(task)
+  n = getTaskSize(task)
+  p = getTaskNFeats(task)
+  if (lrn.id == "ranger") {
+    par.vals$sample.fraction = max(par.vals$sample.fraction, 1/n) # sollte nicht kleiner als "1" Beobachtung sein
+    par.vals$mtry = ceiling(par.vals$mtry * p)
+    par.vals$min.node.size =  ceiling(par.vals$min.node.size * ceiling(par.vals$sample.fraction * n)) # nodesize darf nicht größer sein als sampsize!
+  }
+  if (lrn.id == "randomForest") {
+    par.vals$sampsize = max(ceiling(par.vals$sampsize * n), 1)
+    par.vals$mtry = ceiling(par.vals$mtry * p)
+    par.vals$nodesize = ceiling(par.vals$nodesize * par.vals$sampsize) # nodesize darf nicht größer sein als sampsize!
+    par.vals$maxnodes = max(2, floor(par.vals$maxnodes * (par.vals$sampsize/par.vals$nodesize)))
+  }
+  if (lrn.id == "randomForestSRC") {
+    par.vals$sampsize = ceiling(par.vals$sampsize * n)
+    par.vals$samptype = as.character(par.vals$samptype)
+    par.vals$mtry = ceiling(par.vals$mtry * p)
+    par.vals$nodesize = ceiling(par.vals$nodesize * par.vals$sampsize) # nodesize darf nicht größer sein als sampsize!
+    par.vals$nodedepth = ceiling(par.vals$nodedepth * floor(log(n, 2))) # nodedepth kann zwischen 1 und floor(log(n, 2)) liegen
+    
+    # par.vals$bootstrap = as.character(par.vals$bootstrap)
+    if (typ == "classif") par.vals$splitrule = switch(as.character(par.vals$splitrule), normal = "gini", unwt = "gini.unwt", hvwt = "gini.hvwt", random = "random")
+    if (typ == "regr") par.vals$splitrule = switch(as.character(par.vals$splitrule), normal = "mse", unwt = "mse.unwt", hvwt = "mse.hvwt", random = "random")
+  }
+  return(par.vals)
+}
 
+makeRLearner.classif.forestMBO = function() {
+  makeRLearnerClassif(
+    cl = "classif.forestMBO",
+    package = "MASS",
+    par.set = makeParamSet(
+      makeIntegerLearnerParam(id = "f.evals", lower = 1, upper = Inf, default = 3),
+      makeIntegerLearnerParam(id = "mbo.init.design", lower = 1, upper = Inf, default = 20)
+    ),
+    properties = c("twoclass", "multiclass", "numerics", "factors", "prob"),
+    name = "Random Forest MBO-tuned",
+    short.name = "rfMBO"
+  )
+}
+
+trainLearner.classif.forestMBO = function(.learner, .task, .subset, .weights = NULL, ...) {
+  forestMBO(task = .task, ...)
+}
+
+predictLearner.classif.forestMBO = function(.learner, .model, .newdata, ...) {
+  p = predict(.model$learner.model, newdata = .newdata, ...)
+  if (.learner$predict.type == "response") 
+    return(getPredictionResponse(p)) else return(getPredictionProbabilities(p))
+}
+
+forestMBO = function(task, lrn.id = "randomForest", f.evals = 100, mbo.init.design.size = 20) { # this is overfitting!
+  print(f.evals)
+  type = getTaskType(task)
+  measures = MEASURES(type)
+  ps = makeMyParamSet(lrn.id)
+  
   performan = function(x) {
-    lrn = setHyperPars(lrn, par.vals = x)
+    par.vals = x[!(is.na(x))]
+    par.vals = CONVERTPARVAL(par.vals, task, lrn.id)
+    lrn.id = paste0(type, ".", lrn.id)
+    lrn = switch(type, "classif" = makeLearner(lrn.id, predict.type = "prob"), "regr" = makeLearner(lrn.id))
+    lrn = setHyperPars(lrn, par.vals = par.vals)
     mod = train(lrn, task)
-    oob = getOutOfBag(mod, task)
+    oob = getOOBPreds(mod, task)
     performance(oob, measures = measures, model = mod)
   }
   
   # Budget
-  f.evals = 100
-  mbo.init.design.size = 20
+  f.evals = f.evals #100
+  mbo.init.design.size = mbo.init.design.size
   
   # Focus search
   infill.opt = "focussearch"
@@ -93,9 +154,24 @@ forest.mbo = function(task, lrn.id, ps, type) { # this is overfitting!
   result = mbo(fun = objFun, design = design, learner = mbo.learner, control = control)
   res = data.frame(result$opt.path)
   best = res[res$y == min(res$y),]
-  best[nrow(best),]
+  best = best[nrow(best),] # take the last, if several ones are equally best
   
+  best = best[colnames(best) %in% names(ps$pars)]
+  best = as.list(best)
+  par.vals = CONVERTPARVAL(best, task, lrn.id)
+  lrn.id = paste0(type, ".", lrn.id)
+  lrn = switch(type, "classif" = makeLearner(lrn.id, predict.type = "prob"), "regr" = makeLearner(lrn.id))
+  lrn = setHyperPars(lrn, par.vals = par.vals)
+  train(lrn, task)
 }
+
+
+# train.set = seq(1, 150, 2)
+# test.set = seq(2, 150, 2)
+# model = train("classif.forestMBO", iris.task, subset = train.set)
+# p = predict(model, newdata = iris, subset = test.set)
+
+
 
 # forest.mbo = function(static, dynamic, ...) {
 #   # Define our target function

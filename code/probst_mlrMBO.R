@@ -26,13 +26,14 @@ for (did in OMLDATASETS) {
 addAlgorithm("eval", fun = function(job, data, instance, lrn.id, ...) {
   oml.dset = getOMLDataSet(data$did)
   task = convertOMLDataSetToMlr(oml.dset)
+  rf = makeLearner("classif.randomForest", par.vals = list(ntree = 5000), predict.type = "prob")
+  learners = list(makeLearner("classif.randomForest"), makeLearner("classif.forestMBO"))
   type = getTaskType(task)
-  ps = makeMyParamSet(lrn.id)
-  lrn.id = paste0(type, ".", lrn.id)
-  lrn = switch(type, "classif" = makeLearner(lrn.id, predict.type = "prob"), "regr" = makeLearner(lrn.id))
   measures = MEASURES(type)
-  
-  forest.mbo(task, lrn, ps, type, measures)
+  rdesc = makeResampleDesc("RepCV", folds = 10, reps = 10, stratify = FALSE)
+  configureMlr(on.learner.error = "warn", show.learner.output = FALSE)
+  bmr = benchmark(learners, task, rdesc, measures, keep.pred = FALSE, models = FALSE, show.info = TRUE)
+  bmr
 })
 
 
@@ -43,11 +44,22 @@ for (lid in LEARNERIDS) {
 }
 addExperiments(algo.designs = list(eval = ades))
 
+submitJobs(1)
+
+# 5 h für einen Durchlauf bei 5(fold)*2 Evaluationen bei den 8 kleinsten Datensätzen
+
+getStatus()
+getErrorMessages()
 
 summarizeExperiments()
-ids = chunkIds(findNotDone(), chunk.size = 1000)
-
+ids = chunkIds(findNotDone()[1:10], chunk.size = 1)
 submitJobs(ids)
 
+min(getJobStatus()$started, na.rm = T)
+max(getJobStatus()$done, na.rm = T)
+
+res = reduceResultsList(ids = 1:10, fun = function(r) as.list(r), reg = regis)
+
+# testing
 data$did = 457
 lrn.id = "randomForest"
